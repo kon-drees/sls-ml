@@ -19,7 +19,7 @@ def is_stable(labeling, af_graph: nx.DiGraph):
                     return False
         elif labeling[arg] == 'out':
             # get the attackers of the argument (in-label) neighbours  only get the successors(attackers) of a node
-            in_attackers = [v for v in af_graph.predecessors(arg) if labeling[v] == 'in']
+            in_attackers = [attacker for attacker in af_graph.predecessors(arg) if labeling[attacker] == 'in']
             if not in_attackers:
                 return False
         elif labeling[arg] == 'undec':
@@ -38,31 +38,27 @@ def get_mislabeled_args(labeling, af_graph: nx.DiGraph):
                     break
         elif labeling[arg] == 'out':
             # get the attackers of the argument (in-label) neighbours  only get the successors(attackers) of a node
-            in_neighbors = [attacker for attacker in af_graph.predecessors(arg) if labeling[attacker] == 'in']
-            if not in_neighbors:
+            in_attackers = [attacker for attacker in af_graph.predecessors(arg) if labeling[attacker] == 'in']
+            if not in_attackers:
                 mislabeled.append(arg)
         elif labeling[arg] == 'undec':
             mislabeled.append(arg)
-    return mislabeled
+    return None if not mislabeled else mislabeled
 
 
-# WalkAAF Algorithm returns a single stable extension
+# WalkAAF Algorithm returns a single stable extension and None if no labeling was found
 def walkaaf(af_graph: nx.DiGraph, max_flips=2000, max_tries=200):
     args = set(af_graph.nodes)
     for current_try in range(max_tries):
         labeling = get_random_labeling(args)
-
         for current_flip in range(max_flips):
-            if is_stable(labeling, af_graph):
+            mislabeled = get_mislabeled_args(labeling, af_graph)
+            if mislabeled is None:
                 # in_labels = {arg for arg, label in labeling.items() if label == 'in'}
                 return labeling  # in_labels
-
-            mislabeled = get_mislabeled_args(labeling, af_graph)
-            if mislabeled:
+            else:
                 random_argument = random.choice(mislabeled)
-                if labeling[random_argument] == 'in':
-                    labeling[random_argument] = 'out'
-                elif labeling[random_argument] == 'out':
-                    labeling[random_argument] = 'in'
+                labeling[random_argument] = 'out' if labeling[random_argument] == 'in' else 'out'
 
     return None
+
