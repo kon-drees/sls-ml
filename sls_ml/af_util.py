@@ -1,4 +1,5 @@
 import networkx as nx
+import pandas as pd
 
 
 # extract features for the input graph and argument
@@ -19,7 +20,6 @@ def extract_features_graph_arg(graph, arg):
     return features
 
 
-
 def extract_features_graph(graph):
     features = [
         graph.number_of_nodes(),
@@ -27,3 +27,8 @@ def extract_features_graph(graph):
 
     ]
     return features
+
+
+def read_features_csv_file(file_path):
+    data = pd.read_csv(file_path)
+    return data
