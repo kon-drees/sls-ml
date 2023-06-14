@@ -2,10 +2,8 @@ import os
 import pandas as pd
 import concurrent.futures
 import signal
-import networkx as nx
+
 from tqdm import tqdm
-
-
 from sls_ml.af_parser import parse_file
 from sls_ml.af_util import extract_features_graph_arg
 
