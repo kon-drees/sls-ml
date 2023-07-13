@@ -11,6 +11,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sls_ml.af_parser import parse_file
+from collections import Counter
 
 
 
@@ -99,13 +100,35 @@ def train_models(argumentation_folder, processed_feature_folder, processed_label
 
             y_train.append(out_stability_impact)
 
+    X_train1, X_test, y_train1, y_test = train_test_split(X_train, y_train, random_state=42)
     # Train and save models for each classifier
     for classifier_name, classifier in classifiers:
-        model = classifier.fit(X_train, y_train)
+        model = classifier.fit(X_train1, y_train1)
+        # Predict the labels
+        y_pred = model.predict(X_test)
+
+        # Compute the metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        roc_auc = roc_auc_score(y_test, y_pred) if len(np.unique(y_test)) > 1 else np.nan
+        report = classification_report(y_test, y_pred, zero_division=0)  # Set zero_division=0
+        matrix = confusion_matrix(y_test, y_pred)
+
+        class_balance_ratio = Counter(y_test)
+        class_0_count = class_balance_ratio[0]
+        class_1_count = class_balance_ratio[1]
+        class_balance_ratio = class_0_count / class_1_count if class_1_count != 0 else np.inf
+        class_distribution = f"Class 0: {class_0_count} instances, Class 1: {class_1_count} instances"
 
         # Save the trained model using joblib
         model_file_path = os.path.join(model_save_folder, f'trained_model_{classifier_name}.joblib')
         joblib.dump(model, model_file_path)
+        with open(f'{classifier_name}_metrics.txt', 'w') as f:
+            f.write(f'Accuracy: {accuracy}\n')
+            f.write(f'ROC AUC: {roc_auc}\n')
+            f.write(f'Classification Report:\n{report}\n')
+            f.write(f'Confusion Matrix:\n{matrix}\n')
+            f.write(f'Class Balance Ratio: {class_balance_ratio}\n')
+            f.write(f'Class Distribution: {class_distribution}\n')
 
 
 if __name__ == '__main__':
