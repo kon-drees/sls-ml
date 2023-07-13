@@ -177,7 +177,7 @@ def calculate_iterations(graph):
     num_edges = len(graph.edges())
 
     # Determine the number of iterations based on the graph size
-    iterations = int(math.log(num_nodes + num_edges + 1, 2)) * 50
+    iterations = int(math.log(num_nodes + num_edges + 1, 2)) * 100
 
     # Set a minimum number of iterations to ensure coverage
     min_iterations = 50
