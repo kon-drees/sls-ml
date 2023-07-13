@@ -1,5 +1,6 @@
 import networkx as nx
 import pandas as pd
+import random
 
 
 # extract features for the input graph and argument
@@ -32,3 +33,48 @@ def extract_features_graph(graph):
 def read_features_csv_file(file_path):
     data = pd.read_csv(file_path)
     return data
+
+
+def get_random_labeling(args):
+    return {arg: random.choice(['in', 'out']) for arg in args}
+
+
+# checks if a labeling is stable for a given af graph
+def is_stable(labeling, af_graph: nx.DiGraph):
+    for arg in af_graph.nodes():
+        if labeling[arg] == 'out':
+            in_attackers = [attacker for attacker in af_graph.predecessors(arg) if labeling[attacker] == 'in']
+            if not in_attackers:
+                return False
+        elif labeling[arg] == 'in':
+            if any(labeling[u] != 'out' for u in af_graph.predecessors(arg)) or any(
+                    labeling[v] != 'out' for v in af_graph.neighbors(arg)):
+                return False
+    return True
+
+def get_mislabeled_args(labeling, af_graph: nx.DiGraph):
+    mislabeled = []
+    for arg in af_graph.nodes():
+        if labeling[arg] == 'out':
+            in_attackers = [attacker for attacker in af_graph.predecessors(arg) if labeling[attacker] == 'in']
+            if not in_attackers:
+                mislabeled.append(arg)
+        elif labeling[arg] == 'in':
+            out_attackers = [attacker for attacker in af_graph.predecessors(arg) if labeling[attacker] == 'in']
+            in_attackers = [attacker for attacker in af_graph.successors(arg) if labeling[attacker] == 'in']
+            if out_attackers or in_attackers:
+                mislabeled.append(arg)
+    return mislabeled
+# returns mislabeled arguments
+def get_mislabeled_args_2(labeling, af_graph: nx.DiGraph):
+    mislabeled = []
+    for arg in af_graph.nodes():
+        if labeling[arg] == 'out':
+            in_attackers = [attacker for attacker in af_graph.predecessors(arg) if labeling[attacker] == 'in']
+            if not in_attackers:
+                mislabeled.append(arg)
+        elif labeling[arg] == 'in':
+            if any(labeling[u] != 'out' for u in af_graph.predecessors(arg)) or any(
+                    labeling[v] != 'out' for v in af_graph.successors(arg)):
+                mislabeled.append(arg)
+    return mislabeled
