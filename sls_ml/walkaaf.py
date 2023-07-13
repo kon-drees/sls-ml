@@ -39,29 +39,6 @@ def get_mislabeled_args(labeling, af_graph: nx.DiGraph):
     return mislabeled
 
 
-# returns the best labeling within it's tries and flips
-def walkaaf_labeling(af_graph: nx.DiGraph, max_flips=2000, max_tries=200):
-    args = set(af_graph.nodes)
-    best_labeling_proportion = 0  # Initialize best proportion as 0
-    best_labeling = None  # Initialize best labeling as None
-    for current_try in range(max_tries):
-        labeling = get_random_labeling(args)
-        for current_flip in range(max_flips):
-            mislabeled = get_mislabeled_args(labeling, af_graph)
-            if len(mislabeled) == 0:
-                return labeling  # If no mislabeled arguments, return current labeling
-            else:
-                random_argument = random.choice(mislabeled)
-                labeling[random_argument] = 'out' if labeling[random_argument] == 'in' else 'in'
-
-        # At the end of each try, calculate the proportion of correctly labeled arguments
-        correct_labels_proportion = 1 - (len(mislabeled) / len(args))
-        # If this proportion is better than the best so far, update the best
-        if correct_labels_proportion > best_labeling_proportion:
-            best_labeling_proportion = correct_labels_proportion
-            best_labeling = labeling
-
-    return best_labeling  # Return the labeling with the highest proportion of correct labels
 
 
 # WalkAAF Algorithm returns a single stable extension and None if no labeling was found
