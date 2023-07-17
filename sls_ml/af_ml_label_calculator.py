@@ -353,5 +353,5 @@ if __name__ == '__main__':
 
     processed_files = '/Users/konraddrees/Documents/GitHub/sls-ml/files/label_processed_files.txt'
     processed_initial_files = '/Users/konraddrees/Documents/GitHub/sls-ml/files/label_initial_processed_files.txt'
-    # labeling_data_random(argumentation_folder, output_label_folder, processed_files)
-    labeling_data_inital(argumentation_folder, output_label_initial_folder, processed_initial_files)
+    labeling_data_random(argumentation_folder, output_label_folder, processed_files)
+    # labeling_data_inital(argumentation_folder, output_label_initial_folder, processed_initial_files)
