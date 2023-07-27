@@ -142,7 +142,7 @@ def create_labels(graph):
             labels[arg]['out'].append(stability_impact)
 
     ml_labeling = {}
-    # print(labels)
+
     for arg in labels:
         stability_impacts_in = labels[arg]['in']
         stability_impacts_out = labels[arg]['out']
@@ -176,7 +176,7 @@ def calculate_iterations(graph):
     num_edges = len(graph.edges())
 
     # Determine the number of iterations based on the graph size
-    iterations = int(math.log(num_nodes + num_edges + 1, 2)) * 100
+    iterations = int(math.log(num_nodes + num_edges + 1, 2)) * 30
 
     # Set a minimum number of iterations to ensure coverage
     min_iterations = 50
@@ -185,64 +185,60 @@ def calculate_iterations(graph):
     return max(iterations, min_iterations)
 
 
-def process_graph(file_path, output_folder, processed_files, total, executor_id):
-    print(f"Executor {executor_id} is processing {file_path}")
+def process_graph(file_path, output_folder, processed_files, lock, pbar, executor_id):
     if file_path.endswith('.tgf') or file_path.endswith('.apx'):
-        with tqdm(total=total, desc=f'Worker {executor_id} Progress') as pbar:
-            graph = parse_file(file_path)
-            graph_name = os.path.splitext(os.path.basename(file_path))[0]
+        graph = parse_file(file_path)
+        graph_name = os.path.splitext(os.path.basename(file_path))[0]
 
-            # Skip processing if the graph has already been processed
+        with lock:  # ensure thread-safe access to processed_files
             if graph_name in processed_files:
                 pbar.update()
                 return
-
-            # Calculate the labels using the create_labels function
-            ml_labeling = create_labels(graph)
-
-            # Save the ml_labeling to a CSV file
-            output_file = os.path.join(output_folder, f'{graph_name}_labels.csv')
-            with open(output_file, 'w', newline='') as csvfile:
-                fieldnames = ['Argument', 'In_Stability_Impact', 'Out_Stability_Impact']
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-                writer.writeheader()
-                for arg, data in ml_labeling.items():
-                    writer.writerow({
-                        'Argument': arg,
-                        'In_Stability_Impact': data['in'],
-                        'Out_Stability_Impact': data['out']
-
-                    })
-
-            # Add the processed graph to the set
             processed_files.add(graph_name)
 
-            # Update the progress bar
-            pbar.update()
+        # Calculate the labels using the create_labels function
+        ml_labeling = create_labels(graph)
 
+        # Save the ml_labeling to a CSV file
+        output_file = os.path.join(output_folder, f'{graph_name}_labels.csv')
+        with open(output_file, 'w', newline='') as csvfile:
+            fieldnames = ['Argument', 'In_Stability_Impact', 'Out_Stability_Impact']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+            writer.writeheader()
+            for arg, data in ml_labeling.items():
+                writer.writerow({
+                    'Argument': arg,
+                    'In_Stability_Impact': data['in'],
+                    'Out_Stability_Impact': data['out']
+                })
+
+        pbar.update()  # update the progress bar
 
 def labeling_data_random(argumentation_folder, output_folder, processed_files_file):
-    processed_files = set()
-
     # Load the processed files if the file exists
     if os.path.exists(processed_files_file):
         with open(processed_files_file, 'r') as file:
             processed_files = set(file.read().splitlines())
+    else:
+        processed_files = set()
 
     entries_list = [os.path.join(argumentation_folder, entry) for entry in os.listdir(argumentation_folder)]
 
     total = len(entries_list)
+    pbar = tqdm(total=total, desc='Overall Progress')
+    lock = threading.Lock()
     with concurrent.futures.ThreadPoolExecutor() as executor:
         futures = []
         for i, entry in enumerate(entries_list):
-            futures.append(executor.submit(process_graph, entry, output_folder, processed_files, total, i))
+            futures.append(executor.submit(process_graph, entry, output_folder, processed_files, lock, pbar, i))
 
         # Add a signal handler to capture the interrupt signal (Ctrl+C)
         def signal_handler(sig, frame):
             # Save the updated processed files
             with open(processed_files_file, 'w') as file:
                 file.write('\n'.join(processed_files))
+            pbar.close()
             exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
@@ -250,13 +246,15 @@ def labeling_data_random(argumentation_folder, output_folder, processed_files_fi
         # Wait for all the futures to complete
         concurrent.futures.wait(futures)
 
+    pbar.close()
+
     # Save the updated processed files
     with open(processed_files_file, 'w') as file:
         file.write('\n'.join(processed_files))
 
 
 # returns the best labeling within it's tries and flips
-def walkaaf_labeling(af_graph: nx.DiGraph, max_flips=1000, max_tries=200):
+def walkaaf_labeling(af_graph: nx.DiGraph, max_flips=1000, max_tries=100):
     args = set(af_graph.nodes)
     best_labels = 0  # Initialize best proportion as 0
     best_labeling = None  # Initialize best labeling as None
@@ -293,9 +291,14 @@ def process_graph_initial(file_path, output_folder, processed_files, executor_id
         # Save the best label to a CSV file
         output_file = os.path.join(output_folder, f'{graph_name}_labels.csv')
         with open(output_file, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            for key, value in ml_labeling.items():
-                writer.writerow([key, value])
+            fieldnames = ['Argument', 'Label']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for key, value in sorted(ml_labeling.items()):
+                writer.writerow({
+                    'Argument': key,
+                    'Label': value
+                })
 
         # Add the processed graph to the set
         processed_files.add(graph_name)
@@ -303,6 +306,7 @@ def process_graph_initial(file_path, output_folder, processed_files, executor_id
         # Update the progress bar
         with lock:
             pbar.update()
+
 
 def labeling_data_inital(argumentation_folder, output_label_folder, processed_files_file):
     processed_files = set()
@@ -343,7 +347,6 @@ def labeling_data_inital(argumentation_folder, output_label_folder, processed_fi
         file.write('\n'.join(processed_files))
 
 
-
 if __name__ == '__main__':
     # paths
     output_label_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_label_argumentation_frameworks'
@@ -353,5 +356,5 @@ if __name__ == '__main__':
 
     processed_files = '/Users/konraddrees/Documents/GitHub/sls-ml/files/label_processed_files.txt'
     processed_initial_files = '/Users/konraddrees/Documents/GitHub/sls-ml/files/label_initial_processed_files.txt'
-    labeling_data_random(argumentation_folder, output_label_folder, processed_files)
-    # labeling_data_inital(argumentation_folder, output_label_initial_folder, processed_initial_files)
+    #labeling_data_random(argumentation_folder, output_label_folder, processed_files)
+    labeling_data_inital(argumentation_folder, output_label_initial_folder, processed_initial_files)
