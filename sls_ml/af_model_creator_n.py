@@ -95,8 +95,9 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
     X_train1, X_test, y_train1, y_test = train_test_split(X_train, y_train, random_state=42)
     # Train and save models for each classifier
     for classifier_name, classifier in classifiers:
+        print(f'{classifier_name} start training')
         model = classifier.fit(X_train1, y_train1)
-
+        print(f'{classifier_name} finished training')
         # Extract feature importances for classifiers that have it available
         if hasattr(model, 'feature_importances_'):
             feature_importances = model.feature_importances_
@@ -114,9 +115,10 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
                     f.write(f"{row['Feature']}: {row['Importance']}\n")
                 f.write(f"Total feature importance: {sum(feature_importances)}\n")
 
+        print(f'{classifier_name} start predicting')
         # Predict the labels
         y_pred = model.predict(X_test)
-
+        print(f'{classifier_name} finished predicting')
         # Compute the metrics
         accuracy = accuracy_score(y_test, y_pred)
         roc_auc = roc_auc_score(y_test, y_pred) if len(np.unique(y_test)) > 1 else np.nan
@@ -130,8 +132,9 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
         class_distribution = f"Class 0: {class_0_count} instances, Class 1: {class_1_count} instances"
 
         # Save the trained model using joblib
-        model_file_path = os.path.join(model_save_folder, f'trained_model_{classifier_name}.joblib')
+        model_file_path = os.path.join(model_save_folder, f'trained_model_{classifier_name}_rn.joblib')
         joblib.dump(model, model_file_path)
+        print(f'{classifier_name} saved')
         with open(f'{classifier_name}_metrics.txt', 'w') as f:
             f.write(f'Accuracy: {accuracy}\n')
             f.write(f'ROC AUC: {roc_auc}\n')
@@ -139,6 +142,8 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
             f.write(f'Confusion Matrix:\n{matrix}\n')
             f.write(f'Class Balance Ratio: {class_balance_ratio}\n')
             f.write(f'Class Distribution: {class_distribution}\n')
+
+
 
 
 
