@@ -81,10 +81,57 @@ def preprocess_data(directory_path, output_folder, processed_files_file):
         file.write('\n'.join(processed_files))
 
 
+
+def calculate_edge_node_ratio(graph):
+    edge_node_ratio = graph.number_of_edges() / graph.number_of_nodes()
+    return edge_node_ratio
+
+
+
+def update_features_with_ratio(graph_folder, feature_folder):
+    entries_list = [os.path.join(graph_folder, entry) for entry in os.listdir(graph_folder)]
+
+    with concurrent.futures.ThreadPoolExecutor() as executor, tqdm(total=len(entries_list), desc='Progress') as pbar:
+        futures = [executor.submit(update_file_with_ratio, entry, feature_folder, pbar) for entry in entries_list]
+
+        # Add a signal handler to capture the interrupt signal (Ctrl+C)
+        def signal_handler(sig, frame):
+            exit(0)
+
+        signal.signal(signal.SIGINT, signal_handler)
+
+        # Wait for all the futures to complete
+        concurrent.futures.wait(futures)
+
+def update_file_with_ratio(graph_file, feature_folder, pbar):
+    if graph_file.endswith('.tgf') or graph_file.endswith('.apx'):
+        graph = parse_file(graph_file)
+        graph_name = os.path.splitext(os.path.basename(graph_file))[0]
+
+        edge_node_ratio = calculate_edge_node_ratio(graph)  # Calculate edge-node ratio here
+
+        # Read in the corresponding feature file
+        feature_file = os.path.join(feature_folder, f'{graph_name}.csv')
+        if os.path.exists(feature_file):
+            df = pd.read_csv(feature_file)
+
+            # Add the edge-node ratio to the DataFrame
+            df['edge_node_ratio'] = edge_node_ratio
+
+            # Write the updated DataFrame back to the file
+            df.to_csv(feature_file, mode='w', header=True, index=False)
+
+        # Update the progress bar
+        pbar.update(1)
+
+
+
 if __name__ == '__main__':
     # paths
     directory_path = '/Users/konraddrees/Documents/GitHub/sls-ml/files/argumentation_frameworks'
     output_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/processed_argumentation_frameworks'
     processed_files = '/Users/konraddrees/Documents/GitHub/sls-ml/files/processed_files.txt'
 
-    preprocess_data(directory_path, output_folder, processed_files)
+    # preprocess_data(directory_path, output_folder, processed_files)
+
+    update_features_with_ratio(directory_path, output_folder)

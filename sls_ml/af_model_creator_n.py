@@ -67,8 +67,6 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
             graph_file = os.path.join(argumentation_folder, f'{graph_name}.tgf')
 
         argumentation_framework = parse_file(graph_file)
-        edge_node_ratio = argumentation_framework.number_of_edges() / argumentation_framework.number_of_nodes()
-        edge_node_ratios.append(edge_node_ratio)
 
         for arg in x_train_data['argument']:
             feature_row = x_train_data[x_train_data['argument'] == arg].drop('argument', axis=1)
@@ -76,8 +74,6 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
 
             in_stability_impact = label_row['In_Stability_Impact'].values[0]
             out_stability_impact = label_row['Out_Stability_Impact'].values[0]
-
-            feature_row['edge_node_ratio'] = edge_node_ratio  # Add edge_node_ratio to the feature row
 
             # Create two identical rows for the same argument, one for 'in' and another for 'out'
             feature_row_in = feature_row.copy()
