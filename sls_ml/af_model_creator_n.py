@@ -9,15 +9,9 @@ from sklearn.metrics import accuracy_score, roc_auc_score, classification_report
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sls_ml.af_parser import parse_file
 from collections import Counter
-
-
-
-#node edge ratio
-#length out in? max?
-# vol
 
 
 def extract_features(file_path):
@@ -32,19 +26,17 @@ def extract_labels(file_path):
     return labels
 
 
-
 def compute_metrics(X, y, classifier_name):
-
     return 0
 
 
-
-def train_models(argumentation_folder, processed_feature_folder, processed_label_folder, model_save_folder):
+def train_models_random(argumentation_folder, processed_feature_folder, processed_label_folder, model_save_folder):
     classifiers = [
         ('DecisionTree', DecisionTreeClassifier()),
         ('NaiveBayes', GaussianNB()),
         ('KNeighbors', KNeighborsClassifier()),
-        ('RandomForest', RandomForestClassifier())
+        ('RandomForest', RandomForestClassifier()),
+        ('GradientBoosting', GradientBoostingClassifier())
     ]
 
     argumentation_files = os.listdir(argumentation_folder)
@@ -104,6 +96,24 @@ def train_models(argumentation_folder, processed_feature_folder, processed_label
     # Train and save models for each classifier
     for classifier_name, classifier in classifiers:
         model = classifier.fit(X_train1, y_train1)
+
+        # Extract feature importances for classifiers that have it available
+        if hasattr(model, 'feature_importances_'):
+            feature_importances = model.feature_importances_
+            # Make a DataFrame with feature importances and corresponding feature names
+            importances_df = pd.DataFrame({
+                'Feature': X_train1.columns,
+                'Importance': feature_importances
+            })
+            # Sort by importance
+            importances_df = importances_df.sort_values(by='Importance', ascending=False)
+
+            # Save feature importances to a txt file
+            with open(f'{classifier_name}_feature_importances.txt', 'w') as f:
+                for index, row in importances_df.iterrows():
+                    f.write(f"{row['Feature']}: {row['Importance']}\n")
+                f.write(f"Total feature importance: {sum(feature_importances)}\n")
+
         # Predict the labels
         y_pred = model.predict(X_test)
 
@@ -133,11 +143,6 @@ def train_models(argumentation_folder, processed_feature_folder, processed_label
 
 
 
-
-
-
-
-
 if __name__ == '__main__':
     # Paths
     argumentation_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/argumentation_frameworks'
@@ -145,5 +150,5 @@ if __name__ == '__main__':
     processed_label_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_label_argumentation_frameworks'
     output_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_models'
 
-    train_models(argumentation_folder, processed_feature_folder, processed_label_folder, output_folder)
+    train_models_random(argumentation_folder, processed_feature_folder, processed_label_folder, output_folder)
 
