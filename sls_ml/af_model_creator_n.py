@@ -61,13 +61,6 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
         processed_label_file_path = os.path.join(processed_label_folder, f'{graph_name}_labels.csv')
         y_train_data = pd.read_csv(processed_label_file_path)
 
-        # Calculate edge_node_ratio for this file
-        graph_file = os.path.join(argumentation_folder, f'{graph_name}.apx')
-        if not os.path.exists(graph_file):
-            graph_file = os.path.join(argumentation_folder, f'{graph_name}.tgf')
-
-        argumentation_framework = parse_file(graph_file)
-
         for arg in x_train_data['argument']:
             feature_row = x_train_data[x_train_data['argument'] == arg].drop('argument', axis=1)
             label_row = y_train_data[y_train_data['Argument'] == arg]
