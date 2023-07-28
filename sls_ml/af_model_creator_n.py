@@ -12,6 +12,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sls_ml.af_parser import parse_file
 from collections import Counter
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 
 def extract_features(file_path):
@@ -30,12 +32,57 @@ def compute_metrics(X, y, classifier_name):
     return 0
 
 
+
+def load_and_preprocess_data_random(processed_feature_file, argumentation_files, processed_feature_folder, processed_label_folder):
+    graph_name = os.path.splitext(processed_feature_file)[0]
+    if f'{graph_name}.apx' not in argumentation_files and f'{graph_name}.tgf' not in argumentation_files:
+        return [], []
+
+    # Load the processed feature data from CSV
+    processed_feature_file_path = os.path.join(processed_feature_folder, processed_feature_file)
+    x_train_data = pd.read_csv(processed_feature_file_path)
+
+    # Load the processed label data from CSV
+    processed_label_file_path = os.path.join(processed_label_folder, f'{graph_name}_labels.csv')
+    y_train_data = pd.read_csv(processed_label_file_path)
+
+    # Before starting the loop, create dictionaries mapping arguments to rows
+    x_train_data_dict = x_train_data.set_index('argument').to_dict('index')
+    y_train_data_dict = y_train_data.set_index('Argument').to_dict('index')
+
+    X_train = []
+    y_train = []
+
+    for arg in x_train_data['argument']:
+        # Use the dictionaries to get the rows for this argument
+        feature_row = x_train_data_dict[arg].copy()
+        label_row = y_train_data_dict[arg]
+
+        in_stability_impact = label_row['In_Stability_Impact']
+        out_stability_impact = label_row['Out_Stability_Impact']
+
+        # Create two identical rows for the same argument, one for 'in' and another for 'out'
+        feature_row_in = feature_row.copy()
+        feature_row_in['state'] = 1  # '1' for 'in' state
+        X_train.append(feature_row_in)  # Append to the list instead of concatenating dataframes
+
+        y_train.append(in_stability_impact)
+
+        feature_row_out = feature_row.copy()
+        feature_row_out['state'] = 0  # '0' for 'out' state
+        X_train.append(feature_row_out)  # Append to the list instead of concatenating dataframes
+
+        y_train.append(out_stability_impact)
+
+    return X_train, y_train
+
+
 def train_models_random(argumentation_folder, processed_feature_folder, processed_label_folder, model_save_folder):
     classifiers = [
         ('DecisionTree', DecisionTreeClassifier()),
         ('NaiveBayes', GaussianNB()),
-        ('KNeighbors', KNeighborsClassifier()),
-        ('RandomForest', RandomForestClassifier()),
+        ('KNeighbors', KNeighborsClassifier(n_jobs=-1)),
+        ('RandomForest', RandomForestClassifier(n_jobs=-1)),
         ('GradientBoosting', GradientBoostingClassifier())
     ]
 
@@ -43,43 +90,21 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
     processed_feature_files = os.listdir(processed_feature_folder)
 
     # Load the processed feature data from all files
-    X_train = pd.DataFrame()  # Initialize an empty dataframe to store the features
-    y_train = []
+    X_train = []  # Initialize X_train as a list
+    y_train = []  # Initialize y_train as a list
 
-    edge_node_ratios = []  # List to store the edge_node_ratio for each file
+    # Parallel loading and preprocessing
+    results = Parallel(n_jobs=-1)(
+        delayed(load_and_preprocess_data_random)(processed_feature_file, argumentation_files, processed_feature_folder,
+                                                 processed_label_folder)
+        for processed_feature_file in tqdm(processed_feature_files)  # Add tqdm progress bar here
+    )
 
-    for processed_feature_file in processed_feature_files:
-        graph_name = os.path.splitext(processed_feature_file)[0]
-        if f'{graph_name}.apx' not in argumentation_files and f'{graph_name}.tgf' not in argumentation_files:
-            continue
+    for x, y in results:
+        X_train.extend(x)
+        y_train.extend(y)
 
-        # Load the processed feature data from CSV
-        processed_feature_file_path = os.path.join(processed_feature_folder, processed_feature_file)
-        x_train_data = pd.read_csv(processed_feature_file_path)
-
-        # Load the processed label data from CSV
-        processed_label_file_path = os.path.join(processed_label_folder, f'{graph_name}_labels.csv')
-        y_train_data = pd.read_csv(processed_label_file_path)
-
-        for arg in x_train_data['argument']:
-            feature_row = x_train_data[x_train_data['argument'] == arg].drop('argument', axis=1)
-            label_row = y_train_data[y_train_data['Argument'] == arg]
-
-            in_stability_impact = label_row['In_Stability_Impact'].values[0]
-            out_stability_impact = label_row['Out_Stability_Impact'].values[0]
-
-            # Create two identical rows for the same argument, one for 'in' and another for 'out'
-            feature_row_in = feature_row.copy()
-            feature_row_in['state'] = 1  # '1' for 'in' state
-            X_train = pd.concat([X_train, feature_row_in], ignore_index=True)
-
-            y_train.append(in_stability_impact)
-
-            feature_row_out = feature_row.copy()
-            feature_row_out['state'] = 0  # '0' for 'out' state
-            X_train = pd.concat([X_train, feature_row_out], ignore_index=True)
-
-            y_train.append(out_stability_impact)
+    X_train = pd.DataFrame(X_train)
 
     X_train1, X_test, y_train1, y_test = train_test_split(X_train, y_train, random_state=42)
     # Train and save models for each classifier
@@ -133,49 +158,75 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
             f.write(f'Class Distribution: {class_distribution}\n')
 
 
+def load_and_preprocess_data_in(processed_feature_file, argumentation_files, processed_feature_folder, processed_label_folder):
+    X_train = []
+    y_train = []
+
+    graph_name = os.path.splitext(processed_feature_file)[0]
+    if f'{graph_name}.apx' not in argumentation_files and f'{graph_name}.tgf' not in argumentation_files:
+        return [], []
+
+    # Load the processed feature data from CSV
+    processed_feature_file_path = os.path.join(processed_feature_folder, processed_feature_file)
+    x_train_data = pd.read_csv(processed_feature_file_path)
+
+    # Load the processed label data from CSV
+    processed_label_file_path = os.path.join(processed_label_folder, f'{graph_name}_labels.csv')
+    if not os.path.exists(processed_label_file_path):
+        return [], []
+
+    y_train_data = pd.read_csv(processed_label_file_path)
+
+    # Create dictionaries mapping arguments to rows
+    x_train_data_dict = x_train_data.set_index('argument').to_dict('index')
+    y_train_data_dict = y_train_data.set_index('Argument').to_dict('index')
+
+    for arg in x_train_data['argument']:
+        # Use the dictionaries to get the rows for this argument
+        feature_row = x_train_data_dict[arg].copy()
+        label_row = y_train_data_dict[arg]
+
+        label = label_row['Label']
+        label = 1 if label == 'in' else 0  # Convert 'in' to 1 and 'out' to 0
+
+        X_train.append(feature_row)  # Append to the list instead of concatenating dataframes
+        y_train.append(label)
+
+    return X_train, y_train
+
+
 
 
 def train_models_initial(argumentation_folder, processed_feature_folder, processed_label_folder, model_save_folder):
     classifiers = [
         ('DecisionTree', DecisionTreeClassifier()),
         ('NaiveBayes', GaussianNB()),
-        ('KNeighbors', KNeighborsClassifier()),
-        ('RandomForest', RandomForestClassifier()),
+        ('KNeighbors', KNeighborsClassifier(n_jobs=-1)),
+        ('RandomForest', RandomForestClassifier(n_jobs=-1)),
         ('GradientBoosting', GradientBoostingClassifier())
     ]
 
     argumentation_files = os.listdir(argumentation_folder)
     processed_feature_files = os.listdir(processed_feature_folder)
 
-    # Load the processed feature data from all files
-    X_train = pd.DataFrame()  # Initialize an empty dataframe to store the features
-    y_train = []
+    X_train = []  # Initialize X_train as a list
+    y_train = []  # Initialize y_train as a list
 
-    for processed_feature_file in processed_feature_files:
-        graph_name = os.path.splitext(processed_feature_file)[0]
-        if f'{graph_name}.apx' not in argumentation_files and f'{graph_name}.tgf' not in argumentation_files:
-            continue
+    # Parallel loading and preprocessing
+    # Parallel loading and preprocessing
+    results = Parallel(n_jobs=-1)(
+        delayed(load_and_preprocess_data_in)(processed_feature_file, argumentation_files, processed_feature_folder,
+                                          processed_label_folder)
+        for processed_feature_file in tqdm(processed_feature_files)  # Add tqdm progress bar here
+    )
 
-        # Load the processed feature data from CSV
-        processed_feature_file_path = os.path.join(processed_feature_folder, processed_feature_file)
-        x_train_data = pd.read_csv(processed_feature_file_path)
+    # Merge results
+    for x, y in results:
+        X_train.extend(x)
+        y_train.extend(y)
 
-        # Load the processed label data from CSV
-        processed_label_file_path = os.path.join(processed_label_folder, f'{graph_name}_labels.csv')
-        if not os.path.exists(processed_label_file_path):
-            continue
-
-        y_train_data = pd.read_csv(processed_label_file_path)
-
-        for arg in x_train_data['argument']:
-            feature_row = x_train_data[x_train_data['argument'] == arg].drop('argument', axis=1)
-            label_row = y_train_data[y_train_data['Argument'] == arg]
-
-            label = label_row['Label'].values[0]
-            label = 1 if label == 'in' else 0  # Convert 'in' to 1 and 'out' to 0
-
-            X_train = pd.concat([X_train, feature_row], ignore_index=True)
-            y_train.append(label)
+    # Convert X_train to a dataframe
+    X_train = pd.DataFrame(X_train)
 
     X_train1, X_test, y_train1, y_test = train_test_split(X_train, y_train, random_state=42)
     # Train and save models for each classifier
@@ -241,4 +292,4 @@ if __name__ == '__main__':
     output_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_models'
 
     train_models_random(argumentation_folder, processed_feature_folder, processed_label_rn_folder, output_folder)
-    train_models_initial(argumentation_folder,processed_feature_folder,processed_label_in_folder,output_folder)
+   # train_models_initial(argumentation_folder,processed_feature_folder,processed_label_in_folder,output_folder)
