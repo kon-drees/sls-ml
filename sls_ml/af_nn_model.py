@@ -6,14 +6,13 @@ import torch
 from torch.nn import Linear, BatchNorm1d
 from torch.nn import functional as F
 
-from torch_geometric.data import DataLoader, Data, Batch
+from torch_geometric.data import DataLoader, Batch
 from torch_geometric.nn import GCNConv
-from torch_geometric.nn import BatchNorm
 from torch_geometric.nn import SAGEConv
 from torch_geometric.utils import from_networkx
 from torch_geometric.nn import GATConv
 
-from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, balanced_accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 
 from joblib import Parallel, delayed
 from tqdm import tqdm
@@ -221,20 +220,10 @@ def create_dataloader_random(argumentation_folder, processed_feature_folder, pro
 
 
 def train_model_random(argumentation_folder, processed_feature_folder, processed_label_folder):
-    # Training settings
+
     loader = create_dataloader_random(argumentation_folder, processed_feature_folder, processed_label_folder)
-
-    for batch in loader:
-        features = batch.x  # Access the node features
-        labels = batch.y  # Access the labels
-        print('Loaded features shape:', features.shape)  # Debug print statement
-        print('Loaded labels shape:', labels.shape)
-
-    # get the number of features
-    num_features = features.shape[1]
     model = AAF_GCNConv(13, 2)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    print(f"Number of features: {num_features}")
 
     # Training loop
     for epoch in range(100):
@@ -268,7 +257,7 @@ def train_model_random(argumentation_folder, processed_feature_folder, processed
     class_distribution = {0: epoch_labels.count(0), 1: epoch_labels.count(1)}
 
     # Save the metrics
-    with open('metrics.txt', 'w') as f:
+    with open('metrics_nn_rn.txt', 'w') as f:
         f.write(f'Accuracy: {accuracy}\n')
         f.write(f'ROC AUC: {roc_auc}\n')
         f.write(f'Classification Report:\n{report}\n')
@@ -393,7 +382,7 @@ def train_model_inital(argumentation_folder, processed_feature_folder, processed
     class_balance_ratio = len([i for i in epoch_labels if i == 0]) / len([i for i in epoch_labels if i == 1])
     class_distribution = {0: epoch_labels.count(0), 1: epoch_labels.count(1)}
         # Save the metrics
-    with open('metrics.txt', 'w') as f:
+    with open('metrics_nn_in.txt', 'w') as f:
             f.write(f'Accuracy: {accuracy}\n')
             f.write(f'ROC AUC: {roc_auc}\n')
             f.write(f'Classification Report:\n{report}\n')
@@ -418,14 +407,13 @@ if __name__ == '__main__':
         print("torch using mps")
     else:
         torch_device = "cpu"
+        print("torch using cpu")
     torch.set_default_device(torch_device)
     model_rn = train_model_inital(argumentation_folder, processed_feature_folder, processed_label_folder_in)
-    #PATH = os.path.join(output_folder, "nn_rn.pt")
-    #torch.save(model_rn.state_dict(), PATH)
+    PATH = os.path.join(output_folder, "nn_rn.pt")
+    torch.save(model_rn.state_dict(), PATH)
 
-
-
-    #model_rn = train_model_random(argumentation_folder, processed_feature_folder, processed_label_folder)
-    #PATH = os.path.join(output_folder, "nn_rn.pt")
-    #torch.save(model_rn.state_dict(), PATH)
+    model_in = train_model_random(argumentation_folder, processed_feature_folder, processed_label_folder)
+    PATH = os.path.join(output_folder, "nn_in.pt")
+    torch.save(model_in.state_dict(), PATH)
 
