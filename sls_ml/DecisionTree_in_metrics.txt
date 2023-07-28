@@ -1,0 +1,17 @@
+Accuracy: 0.7773216031280548
+ROC AUC: 0.74968794672187
+Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.84      0.83      0.83    595808
+           1       0.66      0.67      0.66    289087
+
+    accuracy                           0.78    884895
+   macro avg       0.75      0.75      0.75    884895
+weighted avg       0.78      0.78      0.78    884895
+
+Confusion Matrix:
+[[494170 101638]
+ [ 95409 193678]]
+Class Balance Ratio: 2.0609989380359544
+Class Distribution: Class 0: 595808 instances, Class 1: 289087 instances

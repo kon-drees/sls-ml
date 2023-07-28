@@ -1,0 +1,13 @@
+predecessors: 0.26016497990391485
+closeness_centrality: 0.14862647372899374
+pagerank: 0.11262415987315151
+edge_node_ratio: 0.11129448208702276
+betweenness_centrality: 0.09469914544497095
+predecessors_neighbors: 0.07361750440954595
+in_degree_centrality: 0.04765198200461477
+average_neighbor_degree: 0.0430932954467804
+successors_neighbors: 0.03520100492699436
+degree_centrality: 0.033922999307683846
+out_degree_centrality: 0.03214801085316338
+successors: 0.006955962013163493
+Total feature importance: 1.0

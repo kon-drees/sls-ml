@@ -1,0 +1,14 @@
+state: 0.3755130790730465
+predecessors: 0.20288755072771314
+edge_node_ratio: 0.168344341469462
+successors_neighbors: 0.10405895045470664
+predecessors_neighbors: 0.06493566018633368
+out_degree_centrality: 0.03193961637059801
+successors: 0.02946256440686121
+average_neighbor_degree: 0.008783631370489533
+degree_centrality: 0.0038043502884070424
+betweenness_centrality: 0.0037071021275993706
+closeness_centrality: 0.003148045815586835
+in_degree_centrality: 0.002586874950448531
+pagerank: 0.0008282327587475799
+Total feature importance: 1.0
