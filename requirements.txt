@@ -10,3 +10,5 @@ matplotlib==3.7.2
 tqdm~=4.65.0
 pandas==2.0.3
 torch~=2.0.1
+xgboost~=1.7.6
+lightgbm~=4.0.0
