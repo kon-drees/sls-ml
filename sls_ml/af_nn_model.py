@@ -101,46 +101,6 @@ class AAF_GraphSAGE_Conv(torch.nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-class AAF_GATConv(torch.nn.Module):
-    def __init__(self, num_features, num_classes):
-        super(AAF_GATConv, self).__init__()
-        self.pre_layer = torch.nn.Linear(num_features, 256)
-        self.batch_norm1 = torch.nn.BatchNorm1d(256)
-        self.conv1 = GATConv(256, 256)
-        self.batch_norm2 = torch.nn.BatchNorm1d(256)
-        self.conv2 = GATConv(256, 256)
-        self.batch_norm3 = torch.nn.BatchNorm1d(256)
-        self.conv3 = GATConv(256, 256)
-        self.batch_norm4 = torch.nn.BatchNorm1d(256)
-        self.post_layer1 = torch.nn.Linear(256, 256)
-        self.batch_norm5 = torch.nn.BatchNorm1d(256)
-        self.post_layer2 = torch.nn.Linear(256, num_classes)
-
-    def forward(self, data):
-        x, edge_index = data.x, data.edge_index
-
-        x = self.pre_layer(x)
-        x = self.batch_norm1(x)
-        x = F.relu(x)
-        x = F.dropout(x, training=self.training)
-
-        x = self.conv1(x, edge_index)
-        x = self.batch_norm2(x)
-        x = F.relu(x)
-        x = self.conv2(x, edge_index)
-        x = self.batch_norm3(x)
-        x = F.relu(x)
-        x = self.conv3(x, edge_index)
-        x = self.batch_norm4(x)
-        x = F.relu(x)
-
-        x = self.post_layer1(x)
-        x = self.batch_norm5(x)
-        x = F.relu(x)
-        x = self.post_layer2(x)
-
-        return F.log_softmax(x, dim=1)
-
 def load_and_preprocess_data_random_for_dataloader(processed_feature_file, argumentation_files, processed_feature_folder, processed_label_folder, argumentation_folder):
     graph_name = os.path.splitext(processed_feature_file)[0]
     if f'{graph_name}.apx' not in argumentation_files and f'{graph_name}.tgf' not in argumentation_files:
@@ -196,8 +156,10 @@ def load_and_preprocess_data_random_for_dataloader(processed_feature_file, argum
         labels.append(out_stability_impact)
 
     # Convert features and labels to tensors
-    data.x = torch.tensor(features, dtype=torch.float)
-    data.y = torch.tensor(labels, dtype=torch.long)
+    features_np = np.array(features)
+    labels_np = np.array(labels)
+    data.x = torch.tensor(features_np, dtype=torch.float)
+    data.y = torch.tensor(labels_np, dtype=torch.long)
 
     return data
 
@@ -219,10 +181,9 @@ def create_dataloader_random(argumentation_folder, processed_feature_folder, pro
     return loader
 
 
-def train_model_random(argumentation_folder, processed_feature_folder, processed_label_folder):
+def train_model_random(model, argumentation_folder, processed_feature_folder, processed_label_folder):
 
     loader = create_dataloader_random(argumentation_folder, processed_feature_folder, processed_label_folder)
-    model = AAF_GCNConv(13, 2)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
     # Training loop
@@ -335,7 +296,7 @@ def create_dataloader_initial(argumentation_folder, processed_feature_folder, pr
     return loader
 
 
-def train_model_inital(argumentation_folder, processed_feature_folder, processed_label_folder):
+def train_model_inital(model, argumentation_folder, processed_feature_folder, processed_label_folder):
     # Training settings
     loader = create_dataloader_initial(argumentation_folder, processed_feature_folder, processed_label_folder)
 
@@ -348,7 +309,6 @@ def train_model_inital(argumentation_folder, processed_feature_folder, processed
 
     # get the number of features
     num_features = features.shape[1]
-    model = AAF_GCNConv(12, 2)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     print(f"Number of features: {num_features}")
 
@@ -410,12 +370,13 @@ if __name__ == '__main__':
         print("torch using cpu")
 
     torch.set_default_device(torch_device)
-    model_in = train_model_inital(argumentation_folder, processed_feature_folder, processed_label_folder_in)
-    PATH = os.path.join(output_folder, "nn_in.pt")
+    model_in = AAF_GraphSAGE_Conv(12, 2)
+    model_in = train_model_inital(model_in, argumentation_folder, processed_feature_folder, processed_label_folder_in)
+    PATH = os.path.join(output_folder, "g_nn_in.pt")
     torch.save(model_in.state_dict(), PATH)
 
-
-    model_rn = train_model_random(argumentation_folder, processed_feature_folder, processed_label_folder)
-    PATH = os.path.join(output_folder, "nn_rn.pt")
+    model_rn = AAF_GraphSAGE_Conv(13, 2)
+    model_rn = train_model_random(model_rn, argumentation_folder, processed_feature_folder, processed_label_folder)
+    PATH = os.path.join(output_folder, "g_nn_rn.pt")
     torch.save(model_rn.state_dict(), PATH)
 
