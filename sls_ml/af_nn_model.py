@@ -1,5 +1,6 @@
 import os
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.nn import Linear, BatchNorm1d
@@ -253,7 +254,7 @@ def train_model_random(argumentation_folder, processed_feature_folder, processed
             predictions = model(data).max(dim=1)[1]
             correct = predictions.eq(data.y).sum().item()
             acc = correct / len(data.y)
-            print('Epoch: {:03d}, Accuracy: {:.4f}'.format(epoch, acc))
+            print('Epoch: {:03d}, Accuracy: {:.4f}'.format(epoch + 1, acc))
 
             epoch_preds.extend(predictions.tolist())
             epoch_labels.extend(data.y.tolist())
@@ -321,8 +322,10 @@ def load_and_preprocess_data_initial_for_dataloader(processed_feature_file, argu
         labels.append(label)
 
     # Convert features and labels to tensors
-    data.x = torch.tensor(features, dtype=torch.float)
-    data.y = torch.tensor(labels, dtype=torch.long)
+    features_np = np.array(features)
+    labels_np = np.array(labels)
+    data.x = torch.tensor(features_np, dtype=torch.float)
+    data.y = torch.tensor(labels_np, dtype=torch.long)
 
     return data
 
@@ -347,8 +350,7 @@ def train_model_inital(argumentation_folder, processed_feature_folder, processed
     # Training settings
     loader = create_dataloader_initial(argumentation_folder, processed_feature_folder, processed_label_folder)
 
-    # load the first batch
-    dataiter = iter(loader)
+
     for batch in loader:
         features = batch.x  # Access the node features
         labels = batch.y  # Access the labels
@@ -379,7 +381,7 @@ def train_model_inital(argumentation_folder, processed_feature_folder, processed
             predictions = model(data).max(dim=1)[1]
             correct = predictions.eq(data.y).sum().item()
             acc = correct / len(data.y)
-            print('Epoch: {:03d}, Accuracy: {:.4f}'.format(epoch, acc))
+            print('Epoch: {:03d}, Accuracy: {:.4f}'.format(epoch + 1, acc))
 
             epoch_preds.extend(predictions.tolist())
             epoch_labels.extend(data.y.tolist())
@@ -411,6 +413,12 @@ if __name__ == '__main__':
     processed_label_folder_in = '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_label_initial_argumentation_frameworks'
     output_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_models'
 
+    if torch.backends.mps.is_available():
+        torch_device = torch.device("mps")
+        print("torch using mps")
+    else:
+        torch_device = "cpu"
+    torch.set_default_device(torch_device)
     model_rn = train_model_inital(argumentation_folder, processed_feature_folder, processed_label_folder_in)
     #PATH = os.path.join(output_folder, "nn_rn.pt")
     #torch.save(model_rn.state_dict(), PATH)
