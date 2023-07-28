@@ -1,11 +1,14 @@
+import json
 import os
-
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
 
 import joblib
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, roc_auc_score, classification_report, confusion_matrix
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
@@ -14,6 +17,7 @@ from sls_ml.af_parser import parse_file
 from collections import Counter
 from joblib import Parallel, delayed
 from tqdm import tqdm
+
 
 
 def extract_features(file_path):
@@ -82,7 +86,19 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
         ('DecisionTree', DecisionTreeClassifier()),
         ('NaiveBayes', GaussianNB()),
         ('KNeighbors', KNeighborsClassifier(n_jobs=-1)),
-        ('RandomForest', RandomForestClassifier(n_jobs=-1)),
+        ('XGBoost', GridSearchCV(estimator=XGBClassifier(n_jobs=-1),
+                                 param_grid={
+                                     'learning_rate': [0.01, 0.1, 0.5],
+                                     'n_estimators': [100, 200, 300],
+                                     'max_depth': [3, 5, 7]},
+                                 scoring='roc_auc', cv=5)),
+        ('RandomForest', GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
+                                      param_grid={
+                                          'n_estimators': [50, 100, 200, 250],
+                                          'max_depth': [None, 10, 20, 30],
+                                          'min_samples_split': [2, 5, 10]},
+                                      scoring='roc_auc', cv=5)),
+        ('LightGBM', LGBMClassifier(n_jobs=-1)),
         ('GradientBoosting', GradientBoostingClassifier())
     ]
 
@@ -149,6 +165,12 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
         model_file_path = os.path.join(model_save_folder, f'trained_model_{classifier_name}_rn.joblib')
         joblib.dump(model, model_file_path)
         print(f'{classifier_name} saved')
+
+        if classifier_name in ['XGBoost', 'RandomForest']:
+            best_params = classifier.best_params_
+            with open(f'{classifier_name}_rn_best_params.txt', 'w') as f:
+                f.write(json.dumps(best_params))
+
         with open(f'{classifier_name}_rn_metrics.txt', 'w') as f:
             f.write(f'Accuracy: {accuracy}\n')
             f.write(f'ROC AUC: {roc_auc}\n')
@@ -202,7 +224,19 @@ def train_models_initial(argumentation_folder, processed_feature_folder, process
         ('DecisionTree', DecisionTreeClassifier()),
         ('NaiveBayes', GaussianNB()),
         ('KNeighbors', KNeighborsClassifier(n_jobs=-1)),
-        ('RandomForest', RandomForestClassifier(n_jobs=-1)),
+        ('XGBoost', GridSearchCV(estimator=XGBClassifier(n_jobs=-1),
+                                 param_grid={
+                                     'learning_rate': [0.01, 0.1, 0.5],
+                                     'n_estimators': [100, 200, 500],
+                                     'max_depth': [3, 5, 7]},
+                                 scoring='roc_auc', cv=5)),
+        ('RandomForest', GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
+                                      param_grid={
+                                          'n_estimators': [50, 100, 200],
+                                          'max_depth': [None, 10, 20, 30],
+                                          'min_samples_split': [2, 5, 10]},
+                                      scoring='roc_auc', cv=5)),
+        ('LightGBM', LGBMClassifier(n_jobs=-1)),
         ('GradientBoosting', GradientBoostingClassifier())
     ]
 
@@ -271,6 +305,12 @@ def train_models_initial(argumentation_folder, processed_feature_folder, process
         model_file_path = os.path.join(model_save_folder, f'trained_model_{classifier_name}_in.joblib')
         joblib.dump(model, model_file_path)
         print(f'{classifier_name} saved')
+
+        if classifier_name in ['XGBoost', 'RandomForest']:
+            best_params = classifier.best_params_
+            with open(f'{classifier_name}_in_best_params.txt', 'w') as f:
+                f.write(json.dumps(best_params))  # Write dictionary as a string to the file
+
         with open(f'{classifier_name}_in_metrics.txt', 'w') as f:
             f.write(f'Accuracy: {accuracy}\n')
             f.write(f'ROC AUC: {roc_auc}\n')
@@ -292,4 +332,4 @@ if __name__ == '__main__':
     output_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_models'
 
     train_models_random(argumentation_folder, processed_feature_folder, processed_label_rn_folder, output_folder)
-   # train_models_initial(argumentation_folder,processed_feature_folder,processed_label_in_folder,output_folder)
+    train_models_initial(argumentation_folder,processed_feature_folder,processed_label_in_folder,output_folder)
