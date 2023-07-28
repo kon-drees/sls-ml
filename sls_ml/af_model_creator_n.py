@@ -89,13 +89,15 @@ def train_models_random(argumentation_folder, processed_feature_folder, processe
         ('XGBoost', GridSearchCV(estimator=XGBClassifier(n_jobs=-1),
                                  param_grid={
                                      'learning_rate': [0.01, 0.1, 0.5],
-                                     'n_estimators': [100, 200, 300],
+                                     'n_estimators': [100, 200, 500],
+                                     'min_child_weight': [1, 5, 10],
                                      'max_depth': [3, 5, 7]},
                                  scoring='roc_auc', cv=5)),
         ('RandomForest', GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
                                       param_grid={
-                                          'n_estimators': [50, 100, 200, 250],
+                                          'n_estimators': [50, 100, 200],
                                           'max_depth': [None, 10, 20, 30],
+                                          'min_samples_leaf': [1, 2, 4],
                                           'min_samples_split': [2, 5, 10]},
                                       scoring='roc_auc', cv=5)),
         ('LightGBM', LGBMClassifier(n_jobs=-1)),
@@ -228,12 +230,14 @@ def train_models_initial(argumentation_folder, processed_feature_folder, process
                                  param_grid={
                                      'learning_rate': [0.01, 0.1, 0.5],
                                      'n_estimators': [100, 200, 500],
+                                     'min_child_weight': [1, 5, 10],
                                      'max_depth': [3, 5, 7]},
                                  scoring='roc_auc', cv=5)),
         ('RandomForest', GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
                                       param_grid={
                                           'n_estimators': [50, 100, 200],
                                           'max_depth': [None, 10, 20, 30],
+                                          'min_samples_leaf': [1, 2, 4],
                                           'min_samples_split': [2, 5, 10]},
                                       scoring='roc_auc', cv=5)),
         ('LightGBM', LGBMClassifier(n_jobs=-1)),
