@@ -257,7 +257,7 @@ def train_model_random(argumentation_folder, processed_feature_folder, processed
     class_distribution = {0: epoch_labels.count(0), 1: epoch_labels.count(1)}
 
     # Save the metrics
-    with open('metrics_nn_rn.txt', 'w') as f:
+    with open('metrics_rn.txt', 'w') as f:
         f.write(f'Accuracy: {accuracy}\n')
         f.write(f'ROC AUC: {roc_auc}\n')
         f.write(f'Classification Report:\n{report}\n')
@@ -382,7 +382,7 @@ def train_model_inital(argumentation_folder, processed_feature_folder, processed
     class_balance_ratio = len([i for i in epoch_labels if i == 0]) / len([i for i in epoch_labels if i == 1])
     class_distribution = {0: epoch_labels.count(0), 1: epoch_labels.count(1)}
         # Save the metrics
-    with open('metrics_nn_in.txt', 'w') as f:
+    with open('metrics_in.txt', 'w') as f:
             f.write(f'Accuracy: {accuracy}\n')
             f.write(f'ROC AUC: {roc_auc}\n')
             f.write(f'Classification Report:\n{report}\n')
@@ -408,12 +408,14 @@ if __name__ == '__main__':
     else:
         torch_device = "cpu"
         print("torch using cpu")
-    torch.set_default_device(torch_device)
-    model_rn = train_model_inital(argumentation_folder, processed_feature_folder, processed_label_folder_in)
-    PATH = os.path.join(output_folder, "nn_rn.pt")
-    torch.save(model_rn.state_dict(), PATH)
 
-    model_in = train_model_random(argumentation_folder, processed_feature_folder, processed_label_folder)
+    torch.set_default_device(torch_device)
+    model_in = train_model_inital(argumentation_folder, processed_feature_folder, processed_label_folder_in)
     PATH = os.path.join(output_folder, "nn_in.pt")
     torch.save(model_in.state_dict(), PATH)
+
+
+    model_rn = train_model_random(argumentation_folder, processed_feature_folder, processed_label_folder)
+    PATH = os.path.join(output_folder, "nn_rn.pt")
+    torch.save(model_rn.state_dict(), PATH)
 
