@@ -1,20 +1,21 @@
 import math
 import os
 import subprocess
+import matplotlib.pyplot as plt
+
+from sls_ml.af_parser import parse_file
 
 
 def generate_af_benchgen(num_args, af_type, output_folder, additional_parameters=""):
-    # Create the output folder if it doesn't exist
+
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-
-    # Generate AF using AFBenchGen2
+    # location of the jar file
     command = f"java -jar /Users/konraddrees/Documents/AFBenchGen2/jAFBenchGen.jar -numargs {num_args} -type {af_type} {additional_parameters}"
     process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
     output, error = process.communicate()
     af = output.decode('utf-8')
 
-    # Find a unique filename by appending a counter
     counter = 1
     af_name = f'af_{num_args}_{af_type}_{counter}.apx'
     while os.path.exists(os.path.join(output_folder, af_name)):
@@ -27,7 +28,6 @@ def generate_af_benchgen(num_args, af_type, output_folder, additional_parameters
     return af_path
 
 
-
 def generate_af():
     output_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/generated_argumentation_frameworks'
     af_types = ['ErdosRenyi', 'WattsStrogatz', 'BarabasiAlbert']
@@ -35,12 +35,9 @@ def generate_af():
 
     # Ranges for parameters
     ER_probAttacks_range = [0.2, 0.4, 0.6, 0.8]
-
     # WS_baseDegree_range = [6, 10, 16, 20]
-
     WS_beta_range = [0.5]
     BA_WS_probCycles_range = [0.2, 0.4, 0.6, 0.8]
-
     # using afbenchgen2
     for af_type in af_types:
         for num_args in num_args_list:
@@ -76,11 +73,34 @@ def generate_af():
 
 
 
+def plot_node_distribution(directory_path):
+    num_nodes = []
+    total_af = 0
+    total_nodes = 0
+    for file_name in os.listdir(directory_path):
+        file_path = os.path.join(directory_path, file_name)
+        try:
+            aaf_graph = parse_file(file_path)
+            nodes = aaf_graph.number_of_nodes()
+            num_nodes.append(nodes)
+            total_nodes += nodes
+            total_af += 1
+        except ValueError as ve:
+            print(f"Error parsing file {file_path}: {ve}")
+            continue
 
+    plt.hist(num_nodes, bins=30, edgecolor='black')
+    plt.title("Distribution of Number of Nodes in Argumentation Frameworks")
+    plt.xlabel("Number of Nodes")
+    plt.ylabel("Number of Frameworks")
+    plt.show()
+
+    print(f"Total number of Argumentation Frameworks: {total_af}")
+    print(f"Total number of Arguments across all Argumentation Frameworks: {total_nodes}")
 
 
 if __name__ == '__main__':
-    #generate using afbenchgen2
-    generate_af()
-    #generate using other gen...
+   # generate_af()
+   directory_path = '/Users/konraddrees/Documents/GitHub/sls-ml/files/argumentation_frameworks'
+   plot_node_distribution(directory_path)
 
