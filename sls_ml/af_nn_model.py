@@ -101,7 +101,7 @@ class AAF_GraphSAGE_Conv(torch.nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-def load_and_preprocess_data_random_for_dataloader(processed_feature_file, argumentation_files, processed_feature_folder, processed_label_folder, argumentation_folder):
+def load_and_preprocess_data_random_for_dataloader(processed_feature_file, argumentation_files, processed_feature_folder, processed_label_folder, argumentation_folder, reduced):
     graph_name = os.path.splitext(processed_feature_file)[0]
     if f'{graph_name}.apx' not in argumentation_files and f'{graph_name}.tgf' not in argumentation_files:
         return None
@@ -109,6 +109,10 @@ def load_and_preprocess_data_random_for_dataloader(processed_feature_file, argum
     # Load the processed feature data from CSV
     processed_feature_file_path = os.path.join(processed_feature_folder, processed_feature_file)
     x_train_data = pd.read_csv(processed_feature_file_path)
+    if (reduced):
+        x_train_data.drop(
+            ['in_degree_centrality', 'predecessors_neighbors', 'degree_centrality', 'average_neighbor_degree',
+             'out_degree_centrality', 'successors_neighbors', 'edge_node_ratio', 'successors'], axis=1, inplace=True)
 
     # Load the processed label data from CSV
     processed_label_file_path = os.path.join(processed_label_folder, f'{graph_name}_labels.csv')
@@ -163,14 +167,14 @@ def load_and_preprocess_data_random_for_dataloader(processed_feature_file, argum
 
     return data
 
-def create_dataloader_random(argumentation_folder, processed_feature_folder, processed_label_folder):
+def create_dataloader_random(argumentation_folder, processed_feature_folder, processed_label_folder, reduced):
     processed_feature_files = os.listdir(processed_feature_folder)
     argumentation_files = os.listdir(argumentation_folder)
 
     # Parallel loading and preprocessing
     data_list = Parallel(n_jobs=-1)(
         delayed(load_and_preprocess_data_random_for_dataloader)(processed_feature_file, argumentation_files, processed_feature_folder,
-                                                 processed_label_folder, argumentation_folder)
+                                                 processed_label_folder, argumentation_folder, reduced)
         for processed_feature_file in tqdm(processed_feature_files)
     )
 
@@ -181,9 +185,9 @@ def create_dataloader_random(argumentation_folder, processed_feature_folder, pro
     return loader
 
 
-def train_model_random(model, argumentation_folder, processed_feature_folder, processed_label_folder):
+def train_model_random(model, argumentation_folder, processed_feature_folder, processed_label_folder, reduced = False):
 
-    loader = create_dataloader_random(argumentation_folder, processed_feature_folder, processed_label_folder)
+    loader = create_dataloader_random(argumentation_folder, processed_feature_folder, processed_label_folder, reduced)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
     # Training loop
@@ -218,7 +222,7 @@ def train_model_random(model, argumentation_folder, processed_feature_folder, pr
     class_distribution = {0: epoch_labels.count(0), 1: epoch_labels.count(1)}
 
     # Save the metrics
-    with open('metrics_rn.txt', 'w') as f:
+    with open('metrics_rn_red.txt', 'w') as f:
         f.write(f'Accuracy: {accuracy}\n')
         f.write(f'ROC AUC: {roc_auc}\n')
         f.write(f'Classification Report:\n{report}\n')
@@ -229,7 +233,7 @@ def train_model_random(model, argumentation_folder, processed_feature_folder, pr
     return model
 
 
-def load_and_preprocess_data_initial_for_dataloader(processed_feature_file, argumentation_files, processed_feature_folder, processed_label_folder, argumentation_folder):
+def load_and_preprocess_data_initial_for_dataloader(processed_feature_file, argumentation_files, processed_feature_folder, processed_label_folder, argumentation_folder, reduced):
     graph_name = os.path.splitext(processed_feature_file)[0]
     if f'{graph_name}.apx' not in argumentation_files and f'{graph_name}.tgf' not in argumentation_files:
         return None
@@ -238,6 +242,9 @@ def load_and_preprocess_data_initial_for_dataloader(processed_feature_file, argu
     processed_feature_file_path = os.path.join(processed_feature_folder, processed_feature_file)
     x_train_data = pd.read_csv(processed_feature_file_path)
 
+    if(reduced):
+        x_train_data.drop(['in_degree_centrality', 'predecessors_neighbors', 'degree_centrality','average_neighbor_degree','out_degree_centrality', 'successors_neighbors', 'edge_node_ratio', 'successors' ], axis=1, inplace=True)
+
     # Load the processed label data from CSV
     processed_label_file_path = os.path.join(processed_label_folder, f'{graph_name}_labels.csv')
     y_train_data = pd.read_csv(processed_label_file_path)
@@ -245,6 +252,10 @@ def load_and_preprocess_data_initial_for_dataloader(processed_feature_file, argu
     # Before starting the loop, create dictionaries mapping arguments to rows
     x_train_data_dict = x_train_data.set_index('argument').to_dict('index')
     y_train_data_dict = y_train_data.set_index('Argument').to_dict('index')
+
+
+
+
 
     # Load the graph
     graph_file = os.path.join(argumentation_folder, f'{graph_name}.apx')
@@ -279,7 +290,7 @@ def load_and_preprocess_data_initial_for_dataloader(processed_feature_file, argu
 
     return data
 
-def create_dataloader_initial(argumentation_folder, processed_feature_folder, processed_label_folder):
+def create_dataloader_initial(argumentation_folder, processed_feature_folder, processed_label_folder, reduced):
     processed_feature_files = os.listdir(processed_feature_folder)
     argumentation_files = os.listdir(argumentation_folder)
 
@@ -287,7 +298,7 @@ def create_dataloader_initial(argumentation_folder, processed_feature_folder, pr
     data_list = Parallel(n_jobs=-1)(
         delayed(load_and_preprocess_data_initial_for_dataloader)(processed_feature_file, argumentation_files,
                                                                 processed_feature_folder,
-                                                                processed_label_folder, argumentation_folder)
+                                                                processed_label_folder, argumentation_folder, reduced)
         for processed_feature_file in tqdm(processed_feature_files)
     )
 
@@ -296,9 +307,9 @@ def create_dataloader_initial(argumentation_folder, processed_feature_folder, pr
     return loader
 
 
-def train_model_inital(model, argumentation_folder, processed_feature_folder, processed_label_folder):
+def train_model_inital(model, argumentation_folder, processed_feature_folder, processed_label_folder, reduced = False):
     # Training settings
-    loader = create_dataloader_initial(argumentation_folder, processed_feature_folder, processed_label_folder)
+    loader = create_dataloader_initial(argumentation_folder, processed_feature_folder, processed_label_folder, reduced)
 
 
     for batch in loader:
@@ -342,7 +353,7 @@ def train_model_inital(model, argumentation_folder, processed_feature_folder, pr
     class_balance_ratio = len([i for i in epoch_labels if i == 0]) / len([i for i in epoch_labels if i == 1])
     class_distribution = {0: epoch_labels.count(0), 1: epoch_labels.count(1)}
         # Save the metrics
-    with open('metrics_in.txt', 'w') as f:
+    with open('metrics_in_red.txt', 'w') as f:
             f.write(f'Accuracy: {accuracy}\n')
             f.write(f'ROC AUC: {roc_auc}\n')
             f.write(f'Classification Report:\n{report}\n')
@@ -370,13 +381,24 @@ if __name__ == '__main__':
         print("torch using cpu")
 
     torch.set_default_device(torch_device)
-    model_in = AAF_GraphSAGE_Conv(12, 2)
-    model_in = train_model_inital(model_in, argumentation_folder, processed_feature_folder, processed_label_folder_in)
-    PATH = os.path.join(output_folder, "g_nn_in.pt")
-    torch.save(model_in.state_dict(), PATH)
+    # model_in = AAF_GraphSAGE_Conv(12, 2)
+    # model_in = train_model_inital(model_in, argumentation_folder, processed_feature_folder, processed_label_folder_in)
+    # PATH = os.path.join(output_folder, "g_nn_in.pt")
+    # torch.save(model_in.state_dict(), PATH)
+    #
+    # model_rn = AAF_GraphSAGE_Conv(13, 2)
+    # model_rn = train_model_random(model_rn, argumentation_folder, processed_feature_folder, processed_label_folder)
+    # PATH = os.path.join(output_folder, "g_nn_rn.pt")
+    # torch.save(model_rn.state_dict(), PATH)
 
-    model_rn = AAF_GraphSAGE_Conv(13, 2)
-    model_rn = train_model_random(model_rn, argumentation_folder, processed_feature_folder, processed_label_folder)
-    PATH = os.path.join(output_folder, "g_nn_rn.pt")
-    torch.save(model_rn.state_dict(), PATH)
+
+    model_in_red = AAF_GCNConv(4, 2)
+    model_in_red = train_model_inital(model_in_red, argumentation_folder, processed_feature_folder, processed_label_folder_in, True)
+    PATH = os.path.join(output_folder, "g_nn_in_red.pt")
+    torch.save(model_in_red.state_dict(), PATH)
+
+    model_rn_red = AAF_GCNConv(5, 2)
+    model_rn_red = train_model_random(model_rn_red, argumentation_folder, processed_feature_folder, processed_label_folder, True)
+    PATH = os.path.join(output_folder, "g_nn_rn_red.pt")
+    torch.save(model_rn_red.state_dict(), PATH)
 
