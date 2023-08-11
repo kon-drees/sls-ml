@@ -1,14 +1,14 @@
-state: 0.22052059178633315
-edge_node_ratio: 0.21787525163734142
-successors_neighbors: 0.08762308300103766
-predecessors_neighbors: 0.07637149447047713
-pagerank: 0.07411235681421954
-closeness_centrality: 0.07192590101924283
-predecessors: 0.07147188676359657
-betweenness_centrality: 0.06741518697525978
-average_neighbor_degree: 0.02520852863428511
-successors: 0.023663158265151283
-out_degree_centrality: 0.023573231929004825
-in_degree_centrality: 0.020310198799157044
-degree_centrality: 0.019929129904893542
+state: 0.220520320680128
+edge_node_ratio: 0.21792424496010576
+successors_neighbors: 0.08739335601612788
+predecessors_neighbors: 0.07629490967463703
+pagerank: 0.07429450641168053
+closeness_centrality: 0.0719273694881608
+predecessors: 0.07145287172772284
+betweenness_centrality: 0.06715482482166021
+average_neighbor_degree: 0.025363135123211804
+successors: 0.023998443536060954
+out_degree_centrality: 0.02365256095425281
+in_degree_centrality: 0.020174493014010253
+degree_centrality: 0.019848963592241135
 Total feature importance: 1.0
