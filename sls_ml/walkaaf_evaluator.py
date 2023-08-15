@@ -68,12 +68,14 @@ def run_algorithm_with_timeout(af_graph, algorithm, *args):
         result[0] = algorithm(af_graph, *args)
 
     thread = threading.Thread(target=worker)
+    thread.daemon = True  # Set the thread as a daemon
     thread.start()
-    thread.join(timeout=300)  # 300 seconds = 5 minutes
+    thread.join(timeout=150)  # 150 seconds
 
     if thread.is_alive():
         print("Aborting due to timeout!")
-        thread.join()  # Optionally, wait for the thread to finish
+        # Optionally, don't wait for the thread to finish since it's a daemon now
+        # thread.join()
 
     return result[0]
 
@@ -162,13 +164,13 @@ if __name__ == '__main__':
     print(f"Vanilla WalkAAF - Avg Time: {avg_time_walkaaf}, Success Rate: {success_rate_walkaaf}")
 
     # Testing walkaaf_with_ml
-    avg_time_ml, success_rate_ml = test_algorithm(af_graphs_list, walkaaf_with_ml1, model_rn)
-    print(f"WalkAAF with ML - Avg Time: {avg_time_ml}, Success Rate: {success_rate_ml}")
+    # avg_time_ml, success_rate_ml = test_algorithm(af_graphs_list, walkaaf_with_ml1, model_rn)
+    # print(f"WalkAAF with ML - Avg Time: {avg_time_ml}, Success Rate: {success_rate_ml}")
 
 
     # Testing walkaaf_with_ml
-    avg_time_ml, success_rate_ml = test_algorithm(af_graphs_list, walkaaf_with_ml2, model_in)
-    print(f"WalkAAF with ML - Avg Time: {avg_time_ml}, Success Rate: {success_rate_ml}")
+    # avg_time_ml, success_rate_ml = test_algorithm(af_graphs_list, walkaaf_with_ml2, model_in)
+    # print(f"WalkAAF with ML - Avg Time: {avg_time_ml}, Success Rate: {success_rate_ml}")
 
 
     # Testing walkaaf_with_ml
