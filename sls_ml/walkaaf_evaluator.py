@@ -11,14 +11,14 @@ from sls_ml.af_parser import parse_file
 from sls_ml.walkaaf import walkaaf_with_ml2, walkaaf, walkaaf_with_ml3, walkaaf_with_ml1
 
 
-def evaluate_algorithm_for_g(af_graph, model, g, num_runs=10):
+def evaluate_algorithm_for_g(af_graph, model_flip, model_in, g, num_runs=10):
     success_count = 0
     total_time = 0
 
     for i in range(num_runs):
         print(i)
         start_time = time.time()
-        result = walkaaf_with_ml2(af_graph, model, g=g)
+        result = walkaaf_with_ml3(af_graph, model_flip,model_in ,g=g)
         total_time += time.time() - start_time
 
         if result is not None:
@@ -30,7 +30,7 @@ def evaluate_algorithm_for_g(af_graph, model, g, num_runs=10):
     return avg_time, success_rate
 
 
-def test_for_best_parameter(af_graph, model):
+def test_for_best_parameter(af_graph, model_flip, model_in):
 
     g_values = np.arange(0.1, 1.1, 0.1)
 
@@ -38,7 +38,7 @@ def test_for_best_parameter(af_graph, model):
     success_rates = []
 
     for g in g_values:
-        avg_time, success_rate = evaluate_algorithm_for_g(af_graph, model, g)
+        avg_time, success_rate = evaluate_algorithm_for_g(af_graph, model_flip, model_in, g)
         avg_times.append(avg_time)
         success_rates.append(success_rate)
 
@@ -153,15 +153,15 @@ if __name__ == '__main__':
 
 
 
-    path = '/Users/konraddrees/Documents/GitHub/sls-ml/files/benchmark_aaf'
+    path = '/Users/konrad_bsc/Documents/GitHub/sls-ml/files/benchmark_aaf'
     af_graphs_list = load_af_graphs_from_directory(path)
 
-    model_rn = load('/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_models/trained_model_RandomForest_rn_red.joblib')
+    model_rn = load('/Users/konrad_bsc/Documents/GitHub/sls-ml/files/ml_models/trained_model_RandomForest_rn_red.joblib')
     model_in = load(
-        '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_models/trained_model_RandomForest_in_red.joblib')
+        '/Users/konrad_bsc/Documents/GitHub/sls-ml/files/ml_models/trained_model_RandomForest_in_red.joblib')
 
-    avg_time_walkaaf, success_rate_walkaaf = test_algorithm(af_graphs_list, walkaaf)
-    print(f"Vanilla WalkAAF - Avg Time: {avg_time_walkaaf}, Success Rate: {success_rate_walkaaf}")
+    #avg_time_walkaaf, success_rate_walkaaf = test_algorithm(af_graphs_list, walkaaf)
+    #print(f"Vanilla WalkAAF - Avg Time: {avg_time_walkaaf}, Success Rate: {success_rate_walkaaf}")
 
     # Testing walkaaf_with_ml
     # avg_time_ml, success_rate_ml = test_algorithm(af_graphs_list, walkaaf_with_ml1, model_rn)
@@ -174,9 +174,9 @@ if __name__ == '__main__':
 
 
     # Testing walkaaf_with_ml
-    avg_time_ml, success_rate_ml = test_algorithm(af_graphs_list, walkaaf_with_ml3, model_rn, model_in)
-    print(f"WalkAAF with ML - Avg Time: {avg_time_ml}, Success Rate: {success_rate_ml}")
+    # avg_time_ml, success_rate_ml = test_algorithm(af_graphs_list, walkaaf_with_ml3, model_rn, model_in)
+    # print(f"WalkAAF with ML - Avg Time: {avg_time_ml}, Success Rate: {success_rate_ml}")
 
     # Visualize and save
-    evaluate_walkaaf(avg_time_walkaaf, avg_time_ml, success_rate_walkaaf, success_rate_ml)
-    save_plot('evaluation_comparison.png')
+     # evaluate_walkaaf(avg_time_walkaaf, avg_time_ml, success_rate_walkaaf, success_rate_ml)
+    # save_plot('evaluation_comparison.png')
