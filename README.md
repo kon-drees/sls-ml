@@ -1,11 +1,8 @@
 # Stochastic Local Search Algorithm with Heuristics based on Machine Learning
 
 
-This Project implements the SLS WalkAAF algorithm and added Heuristics based on Machine Learning and other Heuristics.
-This Code base was done for my Bachelor Thesis.
-
-
-## Contents
+This Project implements the SLS WalkAAF algorithm and adds Heuristics based on Machine Learning and other Heuristics to find a single stable extension of an Abstract Argumentation Framework (SE-ST).
+This Codebase was done for my [Bachelor's Thesis](https://github.com/kon-drees/sls-ml-thesis).
 
 
 
@@ -17,9 +14,14 @@ The Machine Learning Models are trained with sklearn and PyTorch and used for th
 
 
 
+
+
 ## Requirements
 
+The [Light GBM](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html) classifier is installed
 
-https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html
+
+
+
 
 
