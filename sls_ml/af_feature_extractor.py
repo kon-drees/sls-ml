@@ -13,11 +13,10 @@ def process_graph(file_path, output_folder, processed_files, pbar):
         graph = parse_file(file_path)
         graph_name = os.path.splitext(os.path.basename(file_path))[0]
 
-        # Skip processing if the graph has already been processed
         if graph_name in processed_files:
             return
 
-        # Collect features for all arguments
+
         features = []
         arguments = []
         total_arguments = len(graph.nodes())
@@ -40,21 +39,19 @@ def process_graph(file_path, output_folder, processed_files, pbar):
                                                'average_neighbor_degree', 'pagerank'])
         data.insert(0, 'argument', arguments)
 
-        # Save the DataFrame to a CSV file for the argumentation framework
         output_file = os.path.join(output_folder, f'{graph_name}.csv')
         data.to_csv(output_file, mode='w', header=True, index=False)
 
-        # Add the processed graph to the set
+
         processed_files.add(graph_name)
 
-        # Update the progress bar
+
         pbar.update(1)
 
 
 def preprocess_data(directory_path, output_folder, processed_files_file):
     processed_files = set()
 
-    # Load the processed files if the file exists
     if os.path.exists(processed_files_file):
         with open(processed_files_file, 'r') as file:
             processed_files = set(file.read().splitlines())
@@ -64,28 +61,21 @@ def preprocess_data(directory_path, output_folder, processed_files_file):
     with concurrent.futures.ThreadPoolExecutor() as executor, tqdm(total=len(entries_list), desc='Progress') as pbar:
         futures = [executor.submit(process_graph, entry, output_folder, processed_files, pbar) for entry in entries_list]
 
-        # Add a signal handler to capture the interrupt signal (Ctrl+C)
         def signal_handler(sig, frame):
-            # Save the updated processed files
             with open(processed_files_file, 'w') as file:
                 file.write('\n'.join(processed_files))
             exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
-
-        # Wait for all the futures to complete
         concurrent.futures.wait(futures)
 
-    # Save the updated processed files
     with open(processed_files_file, 'w') as file:
         file.write('\n'.join(processed_files))
-
 
 
 def calculate_edge_node_ratio(graph):
     edge_node_ratio = graph.number_of_edges() / graph.number_of_nodes()
     return edge_node_ratio
-
 
 
 def update_features_with_ratio(graph_folder, feature_folder):
@@ -94,34 +84,24 @@ def update_features_with_ratio(graph_folder, feature_folder):
     with concurrent.futures.ThreadPoolExecutor() as executor, tqdm(total=len(entries_list), desc='Progress') as pbar:
         futures = [executor.submit(update_file_with_ratio, entry, feature_folder, pbar) for entry in entries_list]
 
-        # Add a signal handler to capture the interrupt signal (Ctrl+C)
         def signal_handler(sig, frame):
             exit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
-
-        # Wait for all the futures to complete
         concurrent.futures.wait(futures)
+
 
 def update_file_with_ratio(graph_file, feature_folder, pbar):
     if graph_file.endswith('.tgf') or graph_file.endswith('.apx'):
         graph = parse_file(graph_file)
         graph_name = os.path.splitext(os.path.basename(graph_file))[0]
 
-        edge_node_ratio = calculate_edge_node_ratio(graph)  # Calculate edge-node ratio here
-
-        # Read in the corresponding feature file
+        edge_node_ratio = calculate_edge_node_ratio(graph)
         feature_file = os.path.join(feature_folder, f'{graph_name}.csv')
         if os.path.exists(feature_file):
             df = pd.read_csv(feature_file)
-
-            # Add the edge-node ratio to the DataFrame
             df['edge_node_ratio'] = edge_node_ratio
-
-            # Write the updated DataFrame back to the file
             df.to_csv(feature_file, mode='w', header=True, index=False)
-
-        # Update the progress bar
         pbar.update(1)
 
 
@@ -133,5 +113,4 @@ if __name__ == '__main__':
     processed_files = '/Users/konraddrees/Documents/GitHub/sls-ml/files/processed_files.txt'
 
     # preprocess_data(directory_path, output_folder, processed_files)
-
     update_features_with_ratio(directory_path, output_folder)

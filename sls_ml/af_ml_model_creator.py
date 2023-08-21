@@ -1,193 +1,506 @@
+import json
 import os
-import concurrent.futures
-import networkx as nx
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+
+import joblib
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_selection import RFE
+import numpy as np
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import accuracy_score, roc_auc_score, classification_report, confusion_matrix
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from collections import Counter
+from joblib import Parallel, delayed
 from tqdm import tqdm
-import joblib
-from sklearn.metrics import accuracy_score, classification_report, roc_auc_score, confusion_matrix
-from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
-
-
-from sls_ml.af_parser import parse_file
-from sls_ml.walkaaf import get_random_labeling, get_mislabeled_args
 
 
 
-
-def extract_features(graph, arg):
-    features = [
-        len(list(graph.predecessors(arg))),
-        len(list(graph.successors(arg))),
-        sum(len(list(graph.predecessors(neighbor))) for neighbor in graph.predecessors(arg)),
-        sum(len(list(graph.successors(neighbor))) for neighbor in graph.successors(arg)),
-        nx.degree_centrality(graph)[arg],
-        nx.in_degree_centrality(graph)[arg],
-        nx.out_degree_centrality(graph)[arg],
-        nx.closeness_centrality(graph)[arg],
-        nx.betweenness_centrality(graph)[arg],
-        nx.average_neighbor_degree(graph)[arg],
-        nx.pagerank(graph)[arg],
-        nx.hits(graph)[arg],
-        nx.eigenvector_centrality(graph)[arg]
-    ]
+def extract_features(file_path):
+    data = pd.read_csv(file_path)
+    features = data.values
     return features
 
 
-def create_labels(graph):
-    labels = {}
-
-    for arg in tqdm(graph.nodes(), desc='Creating labels', position=0, leave=False):
-        labeling = get_random_labeling(set(graph.nodes))
-        flipped_labeling = labeling.copy()
-        flipped_labeling[arg] = 'out' if flipped_labeling[arg] == 'in' else 'in'
-
-        mislabeled_before_flip = len(get_mislabeled_args(labeling, graph))
-        mislabeled_after_flip = len(get_mislabeled_args(flipped_labeling, graph))
-
-        # Stability Impact
-        stability_impact = mislabeled_after_flip - mislabeled_before_flip
-
-        # Influence Impact
-        influence_before_flip = len(list(graph.successors(arg)))
-        influence_after_flip = len(list(graph.successors(arg))) if flipped_labeling[arg] == 'in' else 0
-        influence_impact = influence_after_flip - influence_before_flip
-
-        # Conflict Impact
-        conflict_before_flip = len(list(graph.predecessors(arg)))
-        conflict_after_flip = len(list(graph.predecessors(arg))) if flipped_labeling[arg] == 'in' else 0
-        conflict_impact = conflict_after_flip - conflict_before_flip
-
-        labels[arg] = (stability_impact, influence_impact, conflict_impact)
-
+def extract_labels(file_path):
+    data = pd.read_csv(file_path)
+    labels = data.values
     return labels
 
 
-def process_graph(file_path, directory_path, output_file='all_features_labels.csv'):
-    X = []
-    y = []
-
-    if file_path.endswith('.tgf') or file_path.endswith('.apx'):
-        graph = parse_file(file_path)
-        labels = create_labels(graph)
-        for arg in graph.nodes():
-            features = extract_features(graph, arg)
-            X.append(features)
-            y.append(labels[arg])
-
-        # Save the features and labels in a single CSV file
-        file_name = os.path.basename(file_path)
-
-        data = pd.DataFrame(X, columns=['predecessors', 'successors', 'predecessors_neighbors', 'successors_neighbors',
-                                        'degree_centrality', 'in_degree_centrality', 'out_degree_centrality',
-                                        'closeness_centrality', 'betweenness_centrality', 'average_neighbor_degree',
-                                        'pagerank', 'hits', 'eigenvector_centrality'])
-        data['stability_impact'] = [label[0] for label in y]
-        data['influence_impact'] = [label[1] for label in y]
-        data['conflict_impact'] = [label[2] for label in y]
-        data['graph_name'] = file_name
-
-        # Append to the existing CSV file or create it if it doesn't exist
-        if os.path.isfile(output_file):
-            data.to_csv(output_file, mode='a', header=False, index=False)
-        else:
-            data.to_csv(output_file, mode='w', header=True, index=False)
-
-    return X, y
+def compute_metrics(X, y, classifier_name):
+    return 0
 
 
-def preprocess_data(directory_path):
-    X = []
-    y = []
+def load_and_preprocess_data_random(processed_feature_file, argumentation_files, processed_feature_folder, processed_label_folder):
+    graph_name = os.path.splitext(processed_feature_file)[0]
+    if f'{graph_name}.apx' not in argumentation_files and f'{graph_name}.tgf' not in argumentation_files:
+        return [], []
 
-    entries_list = [os.path.join(directory_path, entry) for entry in os.listdir(directory_path)]
+    # Load the processed feature data from CSV
+    processed_feature_file_path = os.path.join(processed_feature_folder, processed_feature_file)
+    x_train_data = pd.read_csv(processed_feature_file_path)
 
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        results = list(tqdm(executor.map(process_graph, entries_list, [directory_path]*len(entries_list)), total=len(entries_list), desc='Preprocessing data', position=0, leave=False))
-
-    for result in results:
-        X.extend(result[0])
-        y.extend(result[1])
-
-    return X, y
+    # Load the processed label data from CSV
+    processed_label_file_path = os.path.join(processed_label_folder, f'{graph_name}_labels.csv')
+    y_train_data = pd.read_csv(processed_label_file_path)
 
 
-def train_and_save_model(X, y, model_path='ml_model.joblib', metrics_path='metrics.txt', selected_features_path='selected_features.txt'):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    x_train_data_dict = x_train_data.set_index('argument').to_dict('index')
+    y_train_data_dict = y_train_data.set_index('Argument').to_dict('index')
+    X_train = []
+    y_train = []
 
+    for arg in x_train_data['argument']:
+
+        feature_row = x_train_data_dict[arg].copy()
+        label_row = y_train_data_dict[arg]
+
+        in_stability_impact = label_row['In_Stability_Impact']
+        out_stability_impact = label_row['Out_Stability_Impact']
+
+        # Create two identical rows for the same argument, one for 'in' and another for 'out'
+        feature_row_in = feature_row.copy()
+        feature_row_in['state'] = 1
+        X_train.append(feature_row_in)
+
+        y_train.append(in_stability_impact)
+
+        feature_row_out = feature_row.copy()
+        feature_row_out['state'] = 0
+        X_train.append(feature_row_out)
+
+        y_train.append(out_stability_impact)
+
+    return X_train, y_train
+
+
+def train_models_random(argumentation_folder, processed_feature_folder, processed_label_folder, model_save_folder):
     classifiers = [
         ('DecisionTree', DecisionTreeClassifier()),
         ('NaiveBayes', GaussianNB()),
-        ('KNeighbors', KNeighborsClassifier()),
-        ('RandomForest', RandomForestClassifier())
+        ('KNeighbors', KNeighborsClassifier(n_jobs=-1)),
+        ('XGBoost', GridSearchCV(estimator=XGBClassifier(n_jobs=-1),
+                                 param_grid={
+                                     'learning_rate': [0.01, 0.1, 0.5],
+                                     'n_estimators': [100, 200, 500],
+                                     'min_child_weight': [1, 5, 10],
+                                     'max_depth': [3, 5, 7]},
+                                 scoring='roc_auc', cv=5)),
+        ('RandomForest', GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
+                                      param_grid={
+                                          'n_estimators': [50, 100, 200],
+                                          'max_depth': [None, 10, 20, 30],
+                                          'min_samples_leaf': [1, 2, 4],
+                                          'min_samples_split': [2, 5, 10]},
+                                      scoring='roc_auc', cv=5)),
+        ('LightGBM', LGBMClassifier(n_jobs=-1)),
+        ('GradientBoosting', GradientBoostingClassifier())
     ]
 
+    argumentation_files = os.listdir(argumentation_folder)
+    processed_feature_files = os.listdir(processed_feature_folder)
+
+
+    X_train = []
+    y_train = []
+
+
+    results = Parallel(n_jobs=-1)(
+        delayed(load_and_preprocess_data_random)(processed_feature_file, argumentation_files, processed_feature_folder,
+                                                 processed_label_folder)
+        for processed_feature_file in tqdm(processed_feature_files)
+    )
+
+    for x, y in results:
+        X_train.extend(x)
+        y_train.extend(y)
+
+    X_train = pd.DataFrame(X_train)
+    X_train1, X_test, y_train1, y_test = train_test_split(X_train, y_train, random_state=42)
+
+    # Train and save models for each classifier
     for classifier_name, classifier in classifiers:
-        # Create the RFE selector and fit it to the training data
-        selector = RFE(estimator=DecisionTreeClassifier(), n_features_to_select=4)
-        selector.fit(X_train, y_train)
+        print(f'{classifier_name} start training')
+        model = classifier.fit(X_train1, y_train1)
+        print(f'{classifier_name} finished training')
 
-        # Save the selected features and their indices
-        with open(f'{classifier_name}_{selected_features_path}', 'w') as f:
-            f.write("Selected features indices:\n")
-            f.write(str(selector.get_support(indices=True)) + '\n')
+        if hasattr(model, 'feature_importances_'):
+            feature_importances = model.feature_importances_
+            importances_df = pd.DataFrame({
+                'Feature': X_train1.columns,
+                'Importance': feature_importances
+            })
+
+            importances_df = importances_df.sort_values(by='Importance', ascending=False)
+            # Save feature importances to a txt file
+            with open(f'{classifier_name}_rn_feature_importances.txt', 'w') as f:
+                for index, row in importances_df.iterrows():
+                    f.write(f"{row['Feature']}: {row['Importance']}\n")
+                f.write(f"Total feature importance: {sum(feature_importances)}\n")
+
+        print(f'{classifier_name} start predicting')
+        y_pred = model.predict(X_test)
+        print(f'{classifier_name} finished predicting')
+
+        # Compute the metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        roc_auc = roc_auc_score(y_test, y_pred) if len(np.unique(y_test)) > 1 else np.nan
+        report = classification_report(y_test, y_pred, zero_division=0)  # Set zero_division=0
+        matrix = confusion_matrix(y_test, y_pred)
+
+        class_balance_ratio = Counter(y_test)
+        class_0_count = class_balance_ratio[0]
+        class_1_count = class_balance_ratio[1]
+        class_balance_ratio = class_0_count / class_1_count if class_1_count != 0 else np.inf
+        class_distribution = f"Class 0: {class_0_count} instances, Class 1: {class_1_count} instances"
+
+        # Save the trained model
+        model_file_path = os.path.join(model_save_folder, f'trained_model_{classifier_name}_rn.joblib')
+        joblib.dump(model, model_file_path)
+        print(f'{classifier_name} saved')
+
+        if classifier_name in ['XGBoost', 'RandomForest']:
+            best_params = classifier.best_params_
+            with open(f'{classifier_name}_rn_best_params.txt', 'w') as f:
+                f.write(json.dumps(best_params))
+
+        with open(f'{classifier_name}_rn_metrics.txt', 'w') as f:
+            f.write(f'Accuracy: {accuracy}\n')
+            f.write(f'ROC AUC: {roc_auc}\n')
+            f.write(f'Classification Report:\n{report}\n')
+            f.write(f'Confusion Matrix:\n{matrix}\n')
+            f.write(f'Class Balance Ratio: {class_balance_ratio}\n')
+            f.write(f'Class Distribution: {class_distribution}\n')
 
 
-        # Transform both the training and test datasets to contain only the selected features
-        X_train_selected = selector.transform(X_train)
-        X_test_selected = selector.transform(X_test)
+def load_and_preprocess_data_in(processed_feature_file, argumentation_files, processed_feature_folder, processed_label_folder):
+    X_train = []
+    y_train = []
 
-        # Train the model using the transformed training dataset
-        classifier.fit(X_train_selected, y_train)
+    graph_name = os.path.splitext(processed_feature_file)[0]
+    if f'{graph_name}.apx' not in argumentation_files and f'{graph_name}.tgf' not in argumentation_files:
+        return [], []
 
-        # Predict the labels using the transformed test dataset
-        y_pred = classifier.predict(X_test_selected)
-        print(f'{classifier_name} Accuracy:', accuracy_score(y_test, y_pred))
-
-        # Compute and print the additional metrics
-        print(f"{classifier_name} Classification report:")
-        report = classification_report(y_test, y_pred)
-        print(report)
-        roc_auc = roc_auc_score(y_test, y_pred, multi_class='ovr')
-        print(f"{classifier_name} ROC AUC score:", roc_auc)
-        conf_matrix = confusion_matrix(y_test, y_pred)
-        print(f"{classifier_name} Confusion matrix:")
-        print(conf_matrix)
-
-        # Save the metrics to disk
-        with open(f'{classifier_name}_{metrics_path}', 'w') as f:
-            f.write(f'Accuracy: {accuracy_score(y_test, y_pred)}\n')
-            f.write(f'Classification report:\n{report}\n')
-            f.write(f'ROC AUC score: {roc_auc}\n')
-            f.write(f'Confusion matrix:\n{conf_matrix}\n')
-
-        # Save the model to disk
-        joblib.dump(classifier, f'{classifier_name}_{model_path}')
+    processed_feature_file_path = os.path.join(processed_feature_folder, processed_feature_file)
+    x_train_data = pd.read_csv(processed_feature_file_path)
 
 
-def load_features_labels(input_file='features_labels.csv'):
-    data = pd.read_csv(input_file)
-    X = data.drop(['stability_impact', 'influence_impact', 'conflict_impact'], axis=1).values.tolist()
-    y = data[['stability_impact', 'influence_impact', 'conflict_impact']].values.tolist()
+    processed_label_file_path = os.path.join(processed_label_folder, f'{graph_name}_labels.csv')
+    if not os.path.exists(processed_label_file_path):
+        return [], []
 
-    return X, y
+    y_train_data = pd.read_csv(processed_label_file_path)
+    x_train_data_dict = x_train_data.set_index('argument').to_dict('index')
+    y_train_data_dict = y_train_data.set_index('Argument').to_dict('index')
 
+    for arg in x_train_data['argument']:
+        feature_row = x_train_data_dict[arg].copy()
+        label_row = y_train_data_dict[arg]
+
+        label = label_row['Label']
+        label = 1 if label == 'in' else 0
+
+        X_train.append(feature_row)
+        y_train.append(label)
+
+    return X_train, y_train
+
+
+def train_models_initial(argumentation_folder, processed_feature_folder, processed_label_folder, model_save_folder):
+    classifiers = [
+        ('DecisionTree', DecisionTreeClassifier()),
+        ('NaiveBayes', GaussianNB()),
+        ('KNeighbors', KNeighborsClassifier(n_jobs=-1)),
+        ('XGBoost', GridSearchCV(estimator=XGBClassifier(n_jobs=-1),
+                                 param_grid={
+                                     'learning_rate': [0.01, 0.1, 0.5],
+                                     'n_estimators': [100, 200, 500],
+                                     'min_child_weight': [1, 5, 10],
+                                     'max_depth': [3, 5, 7]},
+                                 scoring='roc_auc', cv=5)),
+        ('RandomForest', GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
+                                      param_grid={
+                                          'n_estimators': [50, 100, 200],
+                                          'max_depth': [None, 10, 20, 30],
+                                          'min_samples_leaf': [1, 2, 4],
+                                          'min_samples_split': [2, 5, 10]},
+                                      scoring='roc_auc', cv=5)),
+        ('LightGBM', LGBMClassifier(n_jobs=-1)),
+        ('GradientBoosting', GradientBoostingClassifier())
+    ]
+
+    argumentation_files = os.listdir(argumentation_folder)
+    processed_feature_files = os.listdir(processed_feature_folder)
+
+    X_train = []
+    y_train = []
+
+    results = Parallel(n_jobs=-1)(
+        delayed(load_and_preprocess_data_in)(processed_feature_file, argumentation_files, processed_feature_folder,
+                                          processed_label_folder)
+        for processed_feature_file in tqdm(processed_feature_files)
+    )
+
+    for x, y in results:
+        X_train.extend(x)
+        y_train.extend(y)
+
+    X_train = pd.DataFrame(X_train)
+    X_train1, X_test, y_train1, y_test = train_test_split(X_train, y_train, random_state=42)
+    # Train and save models for each classifier
+    for classifier_name, classifier in classifiers:
+        print(f'{classifier_name} start training')
+        model = classifier.fit(X_train1, y_train1)
+        print(f'{classifier_name} finished training')
+
+        if hasattr(model, 'feature_importances_'):
+            feature_importances = model.feature_importances_
+            importances_df = pd.DataFrame({
+                'Feature': X_train1.columns,
+                'Importance': feature_importances
+            })
+
+            importances_df = importances_df.sort_values(by='Importance', ascending=False)
+            with open(f'{classifier_name}_in_feature_importances.txt', 'w') as f:
+                for index, row in importances_df.iterrows():
+                    f.write(f"{row['Feature']}: {row['Importance']}\n")
+                f.write(f"Total feature importance: {sum(feature_importances)}\n")
+
+        print(f'{classifier_name} start predicting')
+        y_pred = model.predict(X_test)
+        print(f'{classifier_name} finished predicting')
+
+        # Compute the metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        roc_auc = roc_auc_score(y_test, y_pred) if len(np.unique(y_test)) > 1 else np.nan
+        report = classification_report(y_test, y_pred, zero_division=0)  # Set zero_division=0
+        matrix = confusion_matrix(y_test, y_pred)
+
+        class_balance_ratio = Counter(y_test)
+        class_0_count = class_balance_ratio[0]
+        class_1_count = class_balance_ratio[1]
+        class_balance_ratio = class_0_count / class_1_count if class_1_count != 0 else np.inf
+        class_distribution = f"Class 0: {class_0_count} instances, Class 1: {class_1_count} instances"
+
+        # Save the trained model
+        model_file_path = os.path.join(model_save_folder, f'trained_model_{classifier_name}_in.joblib')
+        joblib.dump(model, model_file_path)
+        print(f'{classifier_name} saved')
+
+        if classifier_name in ['XGBoost', 'RandomForest']:
+            best_params = classifier.best_params_
+            with open(f'{classifier_name}_in_best_params.txt', 'w') as f:
+                f.write(json.dumps(best_params))
+
+        with open(f'{classifier_name}_in_metrics.txt', 'w') as f:
+            f.write(f'Accuracy: {accuracy}\n')
+            f.write(f'ROC AUC: {roc_auc}\n')
+            f.write(f'Classification Report:\n{report}\n')
+            f.write(f'Confusion Matrix:\n{matrix}\n')
+            f.write(f'Class Balance Ratio: {class_balance_ratio}\n')
+            f.write(f'Class Distribution: {class_distribution}\n')
+
+
+def train_models_initial_reduced(argumentation_folder, processed_feature_folder, processed_label_folder, model_save_folder):
+    classifiers = [
+        ('XGBoost', GridSearchCV(estimator=XGBClassifier(n_jobs=-1),
+                                 param_grid={
+                                     'learning_rate': [0.01, 0.1, 0.5],
+                                     'n_estimators': [100, 200, 500],
+                                     'min_child_weight': [1, 5, 10],
+                                     'max_depth': [3, 5, 7]},
+                                 scoring='roc_auc', cv=5)),
+        ('RandomForest', GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
+                                      param_grid={
+                                          'n_estimators': [50, 100, 200],
+                                          'max_depth': [None, 10, 20, 30],
+                                          'min_samples_leaf': [1, 2, 4],
+                                          'min_samples_split': [2, 5, 10]},
+                                      scoring='roc_auc', cv=5))
+    ]
+
+    argumentation_files = os.listdir(argumentation_folder)
+    processed_feature_files = os.listdir(processed_feature_folder)
+
+    X_train = []
+    y_train = []
+
+    results = Parallel(n_jobs=-1)(
+        delayed(load_and_preprocess_data_in)(processed_feature_file, argumentation_files, processed_feature_folder,
+                                          processed_label_folder)
+        for processed_feature_file in tqdm(processed_feature_files)
+    )
+
+    for x, y in results:
+        X_train.extend(x)
+        y_train.extend(y)
+
+    X_train = pd.DataFrame(X_train)
+    X_train.drop(['in_degree_centrality', 'predecessors_neighbors', 'degree_centrality','average_neighbor_degree','out_degree_centrality', 'successors_neighbors', 'edge_node_ratio', 'successors' ], axis=1, inplace=True)
+
+    X_train1, X_test, y_train1, y_test = train_test_split(X_train, y_train, random_state=42)
+    # Train and save models for each classifier
+    for classifier_name, classifier in classifiers:
+        print(f'{classifier_name} start training')
+        model = classifier.fit(X_train1, y_train1)
+        print(f'{classifier_name} finished training')
+
+        if hasattr(model, 'feature_importances_'):
+            feature_importances = model.feature_importances_
+            importances_df = pd.DataFrame({
+                'Feature': X_train1.columns,
+                'Importance': feature_importances
+            })
+
+            importances_df = importances_df.sort_values(by='Importance', ascending=False)
+
+            with open(f'{classifier_name}_in_feature_importances.txt', 'w') as f:
+                for index, row in importances_df.iterrows():
+                    f.write(f"{row['Feature']}: {row['Importance']}\n")
+                f.write(f"Total feature importance: {sum(feature_importances)}\n")
+
+        print(f'{classifier_name} start predicting')
+
+        y_pred = model.predict(X_test)
+        print(f'{classifier_name} finished predicting')
+
+        # Compute the metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        roc_auc = roc_auc_score(y_test, y_pred) if len(np.unique(y_test)) > 1 else np.nan
+        report = classification_report(y_test, y_pred, zero_division=0)  # Set zero_division=0
+        matrix = confusion_matrix(y_test, y_pred)
+
+        class_balance_ratio = Counter(y_test)
+        class_0_count = class_balance_ratio[0]
+        class_1_count = class_balance_ratio[1]
+        class_balance_ratio = class_0_count / class_1_count if class_1_count != 0 else np.inf
+        class_distribution = f"Class 0: {class_0_count} instances, Class 1: {class_1_count} instances"
+
+        # Save the trained model
+        model_file_path = os.path.join(model_save_folder, f'trained_model_{classifier_name}_in_red.joblib')
+        joblib.dump(model, model_file_path)
+        print(f'{classifier_name} saved')
+
+        if classifier_name in ['XGBoost', 'RandomForest']:
+            best_params = classifier.best_params_
+            with open(f'{classifier_name}_in_best_params_red.txt', 'w') as f:
+                f.write(json.dumps(best_params))
+
+        with open(f'{classifier_name}_in_metrics_red.txt', 'w') as f:
+            f.write(f'Accuracy: {accuracy}\n')
+            f.write(f'ROC AUC: {roc_auc}\n')
+            f.write(f'Classification Report:\n{report}\n')
+            f.write(f'Confusion Matrix:\n{matrix}\n')
+            f.write(f'Class Balance Ratio: {class_balance_ratio}\n')
+            f.write(f'Class Distribution: {class_distribution}\n')
+
+
+def train_models_random_reduced(argumentation_folder, processed_feature_folder, processed_label_folder, model_save_folder):
+    classifiers = [
+
+        ('XGBoost', GridSearchCV(estimator=XGBClassifier(n_jobs=-1),
+                                 param_grid={
+                                     'learning_rate': [0.01, 0.1, 0.5],
+                                     'n_estimators': [100, 200, 500],
+                                     'min_child_weight': [1, 5, 10],
+                                     'max_depth': [3, 5, 7]},
+                                 scoring='roc_auc', cv=5)),
+        ('RandomForest', GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
+                                      param_grid={
+                                          'n_estimators': [50, 100, 200],
+                                          'max_depth': [None, 10, 20, 30],
+                                          'min_samples_leaf': [1, 2, 4],
+                                          'min_samples_split': [2, 5, 10]},
+                                      scoring='roc_auc', cv=5))
+    ]
+
+    argumentation_files = os.listdir(argumentation_folder)
+    processed_feature_files = os.listdir(processed_feature_folder)
+
+    X_train = []
+    y_train = []
+
+    results = Parallel(n_jobs=-1)(
+        delayed(load_and_preprocess_data_random)(processed_feature_file, argumentation_files, processed_feature_folder,
+                                                 processed_label_folder)
+        for processed_feature_file in tqdm(processed_feature_files)  # Add tqdm progress bar here
+    )
+
+    for x, y in results:
+        X_train.extend(x)
+        y_train.extend(y)
+
+    X_train = pd.DataFrame(X_train)
+    X_train.drop(['in_degree_centrality', 'predecessors_neighbors', 'degree_centrality','average_neighbor_degree','out_degree_centrality', 'successors_neighbors', 'edge_node_ratio', 'successors' ], axis=1, inplace=True)
+
+
+    X_train1, X_test, y_train1, y_test = train_test_split(X_train, y_train, random_state=42)
+
+    for classifier_name, classifier in classifiers:
+        print(f'{classifier_name} start training')
+        model = classifier.fit(X_train1, y_train1)
+        print(f'{classifier_name} finished training')
+        if hasattr(model, 'feature_importances_'):
+            feature_importances = model.feature_importances_
+
+            importances_df = pd.DataFrame({
+                'Feature': X_train1.columns,
+                'Importance': feature_importances
+            })
+
+            importances_df = importances_df.sort_values(by='Importance', ascending=False)
+            with open(f'{classifier_name}_rn_feature_importances.txt', 'w') as f:
+                for index, row in importances_df.iterrows():
+                    f.write(f"{row['Feature']}: {row['Importance']}\n")
+                f.write(f"Total feature importance: {sum(feature_importances)}\n")
+
+        print(f'{classifier_name} start predicting')
+        y_pred = model.predict(X_test)
+        print(f'{classifier_name} finished predicting')
+        accuracy = accuracy_score(y_test, y_pred)
+        roc_auc = roc_auc_score(y_test, y_pred) if len(np.unique(y_test)) > 1 else np.nan
+        report = classification_report(y_test, y_pred, zero_division=0)  # Set zero_division=0
+        matrix = confusion_matrix(y_test, y_pred)
+
+        class_balance_ratio = Counter(y_test)
+        class_0_count = class_balance_ratio[0]
+        class_1_count = class_balance_ratio[1]
+        class_balance_ratio = class_0_count / class_1_count if class_1_count != 0 else np.inf
+        class_distribution = f"Class 0: {class_0_count} instances, Class 1: {class_1_count} instances"
+
+        # Save the trained
+        model_file_path = os.path.join(model_save_folder, f'trained_model_{classifier_name}_rn_red.joblib')
+        joblib.dump(model, model_file_path)
+        print(f'{classifier_name} saved')
+
+        if classifier_name in ['XGBoost', 'RandomForest']:
+            best_params = classifier.best_params_
+            with open(f'{classifier_name}_rn_best_params_red.txt', 'w') as f:
+                f.write(json.dumps(best_params))
+
+        with open(f'{classifier_name}_rn_metrics_red.txt', 'w') as f:
+            f.write(f'Accuracy: {accuracy}\n')
+            f.write(f'ROC AUC: {roc_auc}\n')
+            f.write(f'Classification Report:\n{report}\n')
+            f.write(f'Confusion Matrix:\n{matrix}\n')
+            f.write(f'Class Balance Ratio: {class_balance_ratio}\n')
+            f.write(f'Class Distribution: {class_distribution}\n')
 
 
 if __name__ == '__main__':
-    directory_path = '/Users/konraddrees/Documents/GitHub/sls-ml/files/training_data'
+    # Paths
+    argumentation_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/argumentation_frameworks'
+    processed_feature_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/processed_argumentation_frameworks'
 
-    # Uncomment the line below if you want to preprocess the data and save it to a CSV file
-    # X, y =
-    preprocess_data(directory_path)
+    processed_label_rn_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_label_argumentation_frameworks'
+    processed_label_in_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_label_initial_argumentation_frameworks'
 
-    # Load the features and labels from the CSV file
-    # X, y = load_features_labels()
+    output_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/ml_models'
 
-    #  train_and_save_model(X, y)
-
-
+    train_models_random(argumentation_folder, processed_feature_folder, processed_label_rn_folder, output_folder)
+    train_models_initial(argumentation_folder,processed_feature_folder,processed_label_in_folder,output_folder)
+    train_models_random_reduced(argumentation_folder, processed_feature_folder, processed_label_rn_folder, output_folder)
+    train_models_initial_reduced(argumentation_folder,processed_feature_folder,processed_label_in_folder,output_folder)

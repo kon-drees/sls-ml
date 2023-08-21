@@ -52,6 +52,7 @@ def is_stable(labeling, af_graph: nx.DiGraph):
                 return False
     return True
 
+
 def get_mislabeled_args(labeling, af_graph: nx.DiGraph):
     mislabeled = []
     for arg in af_graph.nodes():
@@ -66,6 +67,8 @@ def get_mislabeled_args(labeling, af_graph: nx.DiGraph):
                 mislabeled.append(arg)
     return mislabeled
 # returns mislabeled arguments
+
+
 def get_mislabeled_args_2(labeling, af_graph: nx.DiGraph):
     mislabeled = []
     for arg in af_graph.nodes():

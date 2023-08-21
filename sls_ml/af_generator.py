@@ -33,7 +33,7 @@ def generate_af():
     af_types = ['ErdosRenyi', 'WattsStrogatz', 'BarabasiAlbert']
     num_args_list = list(range(5, 26, 1))
 
-    # Ranges for parameters
+
     ER_probAttacks_range = [0.2, 0.4, 0.6, 0.8]
     # WS_baseDegree_range = [6, 10, 16, 20]
     WS_beta_range = [0.5]
@@ -100,7 +100,7 @@ def plot_node_distribution(directory_path):
 
 
 if __name__ == '__main__':
-   # generate_af()
+   generate_af()
    directory_path = '/Users/konraddrees/Documents/GitHub/sls-ml/files/argumentation_frameworks'
    plot_node_distribution(directory_path)
 

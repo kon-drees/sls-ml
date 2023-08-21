@@ -4,7 +4,7 @@ import warnings
 
 import torch
 
-from sls_ml.af_nn_model import AAF_GCNConv
+from sls_ml.af_nn_model_creator import AAF_GCNConv
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
