@@ -6,10 +6,9 @@ This Codebase was done for my [Bachelor's Thesis](https://github.com/kon-drees/s
 
 
 
-
 ## Overview
 
-This Python Project implements a Stochastic Local Search Algorithm with Heuristics based on Machine Learnig. 
+This Python Project implements a Stochastic Local Search Algorithm with Heuristics based on Machine Learnig for findind a singe stable extension. 
 The Machine Learning Models are trained with sklearn and PyTorch and used for the Heuristcs. There exist two models. One for finding the next Argument for switching its current Labelling and one for the initial Labelling of the Arguments in an Abstract Argumentation Framework
 
 
@@ -20,6 +19,50 @@ The Machine Learning Models are trained with sklearn and PyTorch and used for th
 
 The [Light GBM](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html) classifier is installed.
 Libraries under requirements.txt are installed.
+
+
+
+
+## Usage 
+
+
+The python file af_generator.py can generate argumentation frameworks using jAFBenchGen. To generate abstract argumentation frameworks you need the jAFBenchGen jar file and set it in the python file under:
+
+```python
+# location of the jar file
+command = f"java -jar /location/of/the/jar/jAFBenchGen.jar -numargs {num_args} -type {af_type} {additional_parameters}"
+```
+
+Also, set the output folder for the generated frameworks:
+
+```python
+output_folder = '/location/of/the/generated_argumentation_frameworks'
+```
+Run the code with the Main method
+
+For feature extractions of the argumentation framework and data labeling, use the main methods in af_feature_extractor.py and af_ml_label_calculator.py Python files.
+
+Set the locations of the output data and argumentation frameworks in the Main methods of each python files like this:
+
+```python
+if __name__ == '__main__':
+    # paths
+    arg_folder = '/location/of/folder/sls-ml/files/argumentation_frameworks'
+    output_folder = '/location/of/folder/sls-ml/files/processed_argumentation_frameworks'
+    processed_files = '/location/of/folder/sls-ml/files/processed_files.txt'
+    preprocess_data(arg_folder, output_folder, processed_files)
+
+```
+
+The python file af_ml_model_creator.py and af_nn_model_creator.py create the models using classical classifiers like Random Forests and Neural Networks like Graph Convolutional Networks.
+
+Set the location of the file paths in the main methods.
+
+
+
+
+
+
 
 
 
