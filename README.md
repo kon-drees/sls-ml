@@ -26,7 +26,7 @@ Libraries under requirements.txt are installed.
 ## Usage 
 
 
-The python file af_generator.py can generate argumentation frameworks using jAFBenchGen. To generate abstract argumentation frameworks you need the jAFBenchGen jar file and set it in the python file under:
+The Python file af_generator.py can generate argumentation frameworks using jAFBenchGen. To generate abstract argumentation frameworks, you need the jAFBenchGen jar file location and set it in the Python file under:
 
 ```python
 # location of the jar file
@@ -42,7 +42,7 @@ Run the code with the Main method
 
 For feature extractions of the argumentation framework and data labeling, use the main methods in af_feature_extractor.py and af_ml_label_calculator.py Python files.
 
-Set the locations of the output data and argumentation frameworks in the Main methods of each python files like this:
+Set the locations of the output data and argumentation frameworks in the Main methods of each Python files like this:
 
 ```python
 if __name__ == '__main__':
@@ -54,9 +54,12 @@ if __name__ == '__main__':
 
 ```
 
-The python file af_ml_model_creator.py and af_nn_model_creator.py create the models using classical classifiers like Random Forests and Neural Networks like Graph Convolutional Networks.
+The Python file af_ml_model_creator.py and af_nn_model_creator.py create the models using classical classifiers like Random Forests and Neural Networks like Graph Convolutional Networks.
 
 Set the location of the file paths in the main methods.
+
+
+
 
 
 
