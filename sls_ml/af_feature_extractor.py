@@ -108,9 +108,9 @@ def update_file_with_ratio(graph_file, feature_folder, pbar):
 
 if __name__ == '__main__':
     # paths
-    directory_path = '/Users/konraddrees/Documents/GitHub/sls-ml/files/argumentation_frameworks'
+    arg_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/argumentation_frameworks'
     output_folder = '/Users/konraddrees/Documents/GitHub/sls-ml/files/processed_argumentation_frameworks'
     processed_files = '/Users/konraddrees/Documents/GitHub/sls-ml/files/processed_files.txt'
+    preprocess_data(arg_folder, output_folder, processed_files)
 
-    # preprocess_data(directory_path, output_folder, processed_files)
-    update_features_with_ratio(directory_path, output_folder)
+    #update_features_with_ratio(arg_folder, output_folder)

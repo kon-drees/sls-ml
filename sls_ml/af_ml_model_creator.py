@@ -17,7 +17,6 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 
 
-
 def extract_features(file_path):
     data = pd.read_csv(file_path)
     features = data.values

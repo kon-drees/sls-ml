@@ -68,14 +68,10 @@ def walkaaf(af_graph: nx.DiGraph, max_flips=2000, max_tries=200):
     return None
 
 
-
 def get_initial_labeling_ml(args, features, model):
     arg_features = [features[arg] for arg in args]
     predictions = model.predict(arg_features)
     return {arg: 'in' if pred == 1 else 'out' for arg, pred in zip(args, predictions)}
-
-
-
 
 
 def precompute_features(af_graph: nx.DiGraph):
@@ -192,19 +188,15 @@ def walkaaf_with_ml3(af_graph: nx.DiGraph, flip_model, initial_model, max_flips=
 
 
 def get_initial_labeling_ml_nn(args, features, model, data):
-    # Update the node features
     data.x = torch.stack([torch.tensor(features[arg]) for arg in args])
 
     outputs = model(data).squeeze()
 
-    # Convert the output to class probabilities using softmax
     probabilities = torch.nn.functional.softmax(outputs, dim=0)
 
-    # Classify to 'in' or 'out' based on the probability
     predictions = torch.argmax(probabilities, dim=1)
 
     return {arg: 'in' if pred.item() == 1 else 'out' for arg, pred in zip(args, predictions)}
-
 
 
 def choose_argument_ml_nn222(args, features_dict, model, data):
@@ -218,13 +210,12 @@ def choose_argument_ml_nn222(args, features_dict, model, data):
 
     outputs = model(data).squeeze()
 
-    # Convert the output to class probabilities using softmax
     probabilities = torch.nn.functional.softmax(outputs, dim=0)
 
-    # Classify to 'in' or 'out' based on the probability
     predictions = torch.argmax(probabilities, dim=1)
 
     return predictions
+
 
 def choose_argument_ml_nn2222(mislabeled, features_dict, model, labeling, data):
     mislabeled_features_dict = {}
@@ -234,14 +225,11 @@ def choose_argument_ml_nn2222(mislabeled, features_dict, model, labeling, data):
         state = 1 if labeling[arg] == 'in' else 0
         mislabeled_features_dict[arg] = features + [state]
 
-    # Update node features in the data object
     data.x = torch.stack([torch.tensor(mislabeled_features_dict[arg]) for arg in mislabeled])
     outputs = model(data).squeeze()
 
-    # Convert the output to class probabilities using softmax
     probabilities = torch.nn.functional.softmax(outputs, dim=0)
 
-    # Classify to 'in' or 'out' based on the probability
     predictions = torch.argmax(probabilities, dim=1)
 
     candidates_to_flip = [arg for arg, pred in zip(mislabeled, predictions) if pred.item() == 1]
@@ -260,9 +248,7 @@ def choose_argument_ml_nn(args, features_dict, model, data):
 
 
     data.x = torch.stack([torch.tensor(features) for features in mislabeled_pred_features_list])
-
     outputs = model(data).squeeze()
-
     probabilities = torch.nn.functional.softmax(outputs, dim=0)
     predictions = torch.argmax(probabilities, dim=1).tolist()
 
@@ -281,10 +267,7 @@ def choose_argument_ml_nn(args, features_dict, model, data):
 def choose_argument_for_switching(mislabeled, flip_worthiness, labeling):
     candidates = []
 
-    # Create a dictionary from flip_worthiness for faster lookups
     worthiness_dict = {entry['argument']: {'in': entry['in'], 'out': entry['out']} for entry in flip_worthiness}
-
-    # Loop through mislabeled arguments to see if they are worth flipping
     for arg in mislabeled:
         current_label = labeling[arg]
         if current_label == 'in' and worthiness_dict[arg]['in'] == 1:
@@ -293,6 +276,7 @@ def choose_argument_for_switching(mislabeled, flip_worthiness, labeling):
             candidates.append(arg)
 
     return candidates
+
 
 def walkaaf_with_ml3_nn(af_graph: nx.DiGraph, flip_model, initial_model, max_flips=2000, max_tries=200, g=0.5):
     args = set(af_graph.nodes)

@@ -72,7 +72,6 @@ def generate_af():
                         print(f"Generated AF with {num_args} Arguments, {af_type} structure.")
 
 
-
 def plot_node_distribution(directory_path):
     num_nodes = []
     total_af = 0
