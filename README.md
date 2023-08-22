@@ -59,6 +59,18 @@ The Python file af_ml_model_creator.py and af_nn_model_creator.py create the mod
 Set the location of the file paths in the main methods.
 
 
+To use the different SLS-Algorithm use the functions from the walkaaf.py packages:
+
+For example use walkaaf_with_ml3_nn, which uses Neural Networks for finding single extensions:
+
+
+```python
+walkaaf_with_ml3_nn(af_graph, model_rn_red, model_in_red)
+```
+
+The function needs the loaded models and an abstract argumentation framework and returns a single stable extension if found.
+
+
 
 
 
