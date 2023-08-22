@@ -1,64 +1,67 @@
+import csv
 import os
+import random
 
 import matplotlib.pyplot as plt
 import numpy as np
 import threading
 import time
 
+import torch
 from joblib import load
 
+from sls_ml.af_nn_model import AAF_GCNConv
 from sls_ml.af_parser import parse_file
-from sls_ml.walkaaf import walkaaf_with_ml2, walkaaf, walkaaf_with_ml3, walkaaf_with_ml1
+from sls_ml.walkaaf import walkaaf_with_ml2, walkaaf, walkaaf_with_ml3, walkaaf_with_ml1, walkaaf_with_ml3_nn, \
+    walkaaf_with_ml1_nn, walkaaf_with_ml2_nn
 
 
-def evaluate_algorithm_for_g(af_graph, model_flip, model_in, g, num_runs=10):
+def evaluate_algorithm_for_g(af_graph, model_flip, model_in, g, num_runs=5):
     success_count = 0
     total_time = 0
 
     for i in range(num_runs):
-        print(i)
         start_time = time.time()
-        result = walkaaf_with_ml3(af_graph, model_flip,model_in ,g=g)
-        total_time += time.time() - start_time
 
+        # Use the timeout mechanism
+        result = run_algorithm_with_timeout(af_graph, walkaaf_with_ml3_nn, model_flip, model_in, g)
+
+        elapsed_time = time.time() - start_time
+
+        # If the algorithm has a result and didn't timeout
         if result is not None:
+            total_time += elapsed_time
             success_count += 1
+            print(f"Run {i} for g={g} success!")
+        else:
+            # If the algorithm ran for more than the timeout (10 minutes), count as failure
+            print(f"Run {i} for g={g} failed!")
 
-    avg_time = total_time / num_runs
+    # Calculate average time and success rate
+    avg_time = total_time / num_runs if success_count > 0 else 150  # If all runs time out, default to 10 mins
     success_rate = success_count / num_runs
-    print(success_count)
+
     return avg_time, success_rate
 
 
-def test_for_best_parameter(af_graph, model_flip, model_in):
+def test_for_best_parameter(af_graphs, model_flip, model_in):
+    g_values = np.arange(0.1, 1.1, 0.2)
 
-    g_values = np.arange(0.1, 1.1, 0.1)
-
-    avg_times = []
-    success_rates = []
+    all_avg_times = []
+    all_success_rates = []
 
     for g in g_values:
-        avg_time, success_rate = evaluate_algorithm_for_g(af_graph, model_flip, model_in, g)
-        avg_times.append(avg_time)
-        success_rates.append(success_rate)
+        total_time = 0
+        total_success = 0
+        for af_graph in af_graphs:
+            avg_time, success_rate = evaluate_algorithm_for_g(af_graph, model_flip, model_in, g)
+            total_time += avg_time
+            total_success += success_rate
 
-    # Visualization
-    plt.figure(figsize=(12, 6))
+        all_avg_times.append(total_time / len(af_graphs))
+        all_success_rates.append(total_success / len(af_graphs))
 
-    plt.subplot(1, 2, 1)
-    plt.plot(g_values, avg_times, marker='o')
-
-    plt.xlabel('g value')
-    plt.ylabel('Average Time (s)')
-
-    plt.subplot(1, 2, 2)
-    plt.plot(g_values, success_rates, marker='o', color='green')
-
-    plt.xlabel('g value')
-    plt.ylabel('Success Rate')
-
-    plt.tight_layout()
-    plt.show()
+    return g_values, all_avg_times, all_success_rates
 
 
 def run_algorithm_with_timeout(af_graph, algorithm, *args):
@@ -68,14 +71,13 @@ def run_algorithm_with_timeout(af_graph, algorithm, *args):
         result[0] = algorithm(af_graph, *args)
 
     thread = threading.Thread(target=worker)
-    thread.daemon = True  # Set the thread as a daemon
+    thread.daemon = True
     thread.start()
-    thread.join(timeout=150)  # 150 seconds
+    thread.join(timeout=360)
 
     if thread.is_alive():
-        print("Aborting due to timeout!")
-        # Optionally, don't wait for the thread to finish since it's a daemon now
-        # thread.join()
+        print(f"Aborting due to timeout!")
+
 
     return result[0]
 
@@ -149,9 +151,72 @@ def save_plot(filename):
     plt.savefig(filename, bbox_inches='tight')
     plt.close()
 
+
+
+def experiments():
+    model_in_red = AAF_GCNConv(4, 2)
+
+    output_folder = "/Users/konrad_bsc/Documents/GitHub/sls-ml/files/ml_models"
+    PATH = os.path.join(output_folder, "gcn_nn_in_red.pt")
+    model_in_red.load_state_dict(torch.load(PATH))
+    model_in_red.eval()
+
+    model_rn_red = AAF_GCNConv(5, 2)
+    PATH = os.path.join(output_folder, "gcn_nn_rn_red.pt")
+    model_rn_red.load_state_dict(torch.load(PATH))
+    model_rn_red.eval()
+
+    path = '/Users/konrad_bsc/Documents/GitHub/sls-ml/files/benchmark_aaf'
+    af_graphs_list = load_af_graphs_from_directory(path)
+
+    model_rn = load(
+        '/Users/konrad_bsc/Documents/GitHub/sls-ml/files/ml_models/trained_model_RandomForest_rn_red.joblib')
+    model_in = load(
+        '/Users/konrad_bsc/Documents/GitHub/sls-ml/files/ml_models/trained_model_RandomForest_in_red.joblib')
+
+    algorithms = [
+       # {'function': walkaaf, 'name': 'walkaaf'},
+       # {'function': walkaaf_with_ml1, 'args': [model_rn], 'name': 'walkaaf_with_ml1'},
+       # {'function': walkaaf_with_ml2, 'args': [model_in], 'name': 'walkaaf_with_ml2'},
+      #  {'function': walkaaf_with_ml3, 'args': [model_rn, model_in], 'name': 'walkaaf_with_ml3'},
+        {'function': walkaaf_with_ml1_nn, 'args': [model_rn_red], 'name': 'walkaaf_with_ml1_nn'},
+        {'function': walkaaf_with_ml2_nn, 'args': [model_in_red], 'name': 'walkaaf_with_ml2_nn'},
+        {'function': walkaaf_with_ml3_nn, 'args': [model_rn_red, model_in_red], 'name': 'walkaaf_with_ml3_nn'},
+    ]
+
+    results = []
+
+    for algo in algorithms:
+        print(f"Testing {algo['name']}...")
+        avg_time, success_rate = test_algorithm(af_graphs_list, algo['function'], *algo.get('args', []))
+        results.append({
+            'Algorithm': algo['name'],
+            'Avg Time': avg_time,
+            'Success Rate': success_rate
+        })
+
+    with open('evaluation_results_nn.csv', 'w', newline='') as csvfile:
+        fieldnames = ['Algorithm', 'Avg Time', 'Success Rate']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        writer.writeheader()
+        for row in results:
+            writer.writerow(row)
+
+    print("Evaluation completed. Results saved to evaluation_results.csv.")
+
 if __name__ == '__main__':
+    model_in_red = AAF_GCNConv(4, 2)
 
+    output_folder = "/Users/konrad_bsc/Documents/GitHub/sls-ml/files/ml_models"
+    PATH = os.path.join(output_folder, "gcn_nn_in_red.pt")
+    model_in_red.load_state_dict(torch.load(PATH))
+    model_in_red.eval()
 
+    model_rn_red = AAF_GCNConv(5, 2)
+    PATH = os.path.join(output_folder, "gcn_nn_rn_red.pt")
+    model_rn_red.load_state_dict(torch.load(PATH))
+    model_rn_red.eval()
 
     path = '/Users/konrad_bsc/Documents/GitHub/sls-ml/files/benchmark_aaf'
     af_graphs_list = load_af_graphs_from_directory(path)
@@ -160,6 +225,8 @@ if __name__ == '__main__':
     model_in = load(
         '/Users/konrad_bsc/Documents/GitHub/sls-ml/files/ml_models/trained_model_RandomForest_in_red.joblib')
 
+
+    experiments()
     #avg_time_walkaaf, success_rate_walkaaf = test_algorithm(af_graphs_list, walkaaf)
     #print(f"Vanilla WalkAAF - Avg Time: {avg_time_walkaaf}, Success Rate: {success_rate_walkaaf}")
 
@@ -180,3 +247,27 @@ if __name__ == '__main__':
     # Visualize and save
      # evaluate_walkaaf(avg_time_walkaaf, avg_time_ml, success_rate_walkaaf, success_rate_ml)
     # save_plot('evaluation_comparison.png')
+
+
+
+
+
+#    selected_graphs = random.sample(af_graphs_list, 15)
+
+ #   g_values, avg_times, success_rates = test_for_best_parameter(selected_graphs, model_rn_red, model_in_red)
+
+  #  # Visualization
+   # plt.figure(figsize=(12, 6))
+
+    #plt.subplot(1, 2, 1)
+    #plt.plot(g_values, avg_times, marker='o')
+    #plt.xlabel('g value')
+    #plt.ylabel('Average Time (s)')
+
+    #plt.subplot(1, 2, 2)
+    #plt.plot(g_values, success_rates, marker='o', color='green')
+    #plt.xlabel('g value')
+    #plt.ylabel('Success Rate')
+
+    plt.tight_layout()
+    save_plot('average_evaluation_comparison.png')
