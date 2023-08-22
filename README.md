@@ -18,6 +18,7 @@ The Machine Learning Models are trained with sklearn and PyTorch and used for th
 ## Requirements
 
 The [Light GBM](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html) classifier is installed.
+[TorchGeometric](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html) is installed.
 Libraries under requirements.txt are installed.
 
 
