@@ -1,0 +1,6 @@
+argument,predecessors,successors,predecessors_neighbors,successors_neighbors,degree_centrality,in_degree_centrality,out_degree_centrality,closeness_centrality,betweenness_centrality,average_neighbor_degree,pagerank,edge_node_ratio
+a0,2,1,2,2,0.75,0.5,0.25,0.5714285714285714,0.5,2.0,0.2786740907321093,1.2
+a1,1,1,1,1,0.5,0.25,0.25,0.4,0.4166666666666666,1.0,0.1591224647458779,1.2
+a2,1,1,1,1,0.5,0.25,0.25,0.4,0.4166666666666666,1.0,0.1519078699932596,1.2
+a3,1,1,1,1,0.5,0.25,0.25,0.4,0.4166666666666666,1.0,0.1434212573391202,1.2
+a4,1,2,2,2,0.75,0.25,0.5,0.4,0.5,1.0,0.2668743171896329,1.2

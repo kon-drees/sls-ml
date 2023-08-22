@@ -1,2 +1,25 @@
 
 
+/files/generated_argumentation_frameworks/
+/files/ml_models/trained_model_DecisionTree_in.joblib
+/files/ml_models/trained_model_DecisionTree_rn.joblib
+/files/ml_models/trained_model_GradientBoosting_in.joblib
+/files/ml_models/trained_model_GradientBoosting_rn.joblib
+/files/ml_models/trained_model_KNeighbors_in.joblib
+/files/ml_models/trained_model_KNeighbors_rn.joblib
+/files/ml_models/trained_model_NaiveBayes_in.joblib
+/files/ml_models/trained_model_NaiveBayes_rn.joblib
+/files/ml_models/trained_model_RandomForest_in.joblib
+/files/ml_models/trained_model_RandomForest_in_red.joblib
+/files/ml_models/trained_model_RandomForest_rn.joblib
+/files/ml_models/trained_model_RandomForest_rn_red.joblib
+/files/ml_models/trained_model_XGBoost_in.joblib
+/files/ml_models/trained_model_XGBoost_in_red.joblib
+/files/ml_models/trained_model_XGBoost_rn.joblib
+/files/ml_models/trained_model_XGBoost_rn_red.joblib
+/files/ml_models/AAF_GCNConv_in.pt
+/files/ml_models/AAF_GCNConv_rn.pt
+/files/ml_models/AAF_GraphSAGE_Conv_in.pt
+/files/ml_models/AAF_GraphSAGE_Conv_rn.pt
+/files/ml_models/gcn_nn_in_red.pt
+/files/ml_models/gcn_nn_rn_red.pt

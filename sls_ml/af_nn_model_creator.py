@@ -212,7 +212,7 @@ def train_model_random(model, argumentation_folder, processed_feature_folder, pr
     class_distribution = {0: epoch_labels.count(0), 1: epoch_labels.count(1)}
 
     # Save the metrics
-    with open('metrics_rn_red.txt', 'w') as f:
+    with open('../files/metrics/metrics_rn_red.txt', 'w') as f:
         f.write(f'Accuracy: {accuracy}\n')
         f.write(f'ROC AUC: {roc_auc}\n')
         f.write(f'Classification Report:\n{report}\n')
@@ -332,7 +332,7 @@ def train_model_inital(model, argumentation_folder, processed_feature_folder, pr
     class_balance_ratio = len([i for i in epoch_labels if i == 0]) / len([i for i in epoch_labels if i == 1])
     class_distribution = {0: epoch_labels.count(0), 1: epoch_labels.count(1)}
         # Save the metrics
-    with open('metrics_in_red.txt', 'w') as f:
+    with open('../files/metrics/metrics_in_red.txt', 'w') as f:
             f.write(f'Accuracy: {accuracy}\n')
             f.write(f'ROC AUC: {roc_auc}\n')
             f.write(f'Classification Report:\n{report}\n')
