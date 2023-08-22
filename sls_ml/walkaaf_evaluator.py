@@ -10,7 +10,7 @@ import time
 import torch
 from joblib import load
 
-from sls_ml.af_nn_model import AAF_GCNConv
+from sls_ml.af_nn_model_creator import AAF_GCNConv
 from sls_ml.af_parser import parse_file
 from sls_ml.walkaaf import walkaaf_with_ml2, walkaaf, walkaaf_with_ml3, walkaaf_with_ml1, walkaaf_with_ml3_nn, \
     walkaaf_with_ml1_nn, walkaaf_with_ml2_nn
@@ -23,18 +23,15 @@ def evaluate_algorithm_for_g(af_graph, model_flip, model_in, g, num_runs=5):
     for i in range(num_runs):
         start_time = time.time()
 
-        # Use the timeout mechanism
         result = run_algorithm_with_timeout(af_graph, walkaaf_with_ml3_nn, model_flip, model_in, g)
 
         elapsed_time = time.time() - start_time
 
-        # If the algorithm has a result and didn't timeout
         if result is not None:
             total_time += elapsed_time
             success_count += 1
             print(f"Run {i} for g={g} success!")
         else:
-            # If the algorithm ran for more than the timeout (10 minutes), count as failure
             print(f"Run {i} for g={g} failed!")
 
     # Calculate average time and success rate
@@ -117,22 +114,17 @@ def evaluate_walkaaf(avg_time_walkaaf, avg_time_ml, success_rate_walkaaf, succes
 
     plt.figure(figsize=(10, 6))
 
-    # Create bars for avg times
+
     plt.bar(r1, avg_times, color='blue', width=bar_width, edgecolor='grey', label='Avg Time')
-    # Create bars for success rates
+
     plt.bar(r2, success_rates, color='red', width=bar_width, edgecolor='grey', label='Success Rate')
 
-    # Title & Subtitle
     plt.title('Comparison between WalkAAF algorithms', fontweight='bold')
     plt.xlabel('Algorithms', fontweight='bold')
 
-    # X axis
     plt.xticks([r + bar_width for r in range(len(avg_times))], algorithms)
 
-    # Show the legend
     plt.legend()
-
-    # Display the graph
     plt.show()
 
 
@@ -142,7 +134,6 @@ def load_af_graphs_from_directory(path):
     af_graphs_list = []
     for file in os.listdir(path):
         filepath = os.path.join(path, file)
-        # Using your parse_file function to load the AAF graphs
         af_graph = parse_file(filepath)
         af_graphs_list.append(af_graph)
     return af_graphs_list
